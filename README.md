@@ -137,7 +137,7 @@
 ### 1. 克隆并安装
 
 ```bash
-git clone <your-repo-url> minecraft-ai-cyborg
+git clone https://github.com/Annieif/cyborg.git minecraft-ai-cyborg
 cd minecraft-ai-cyborg
 
 # 安装后端依赖

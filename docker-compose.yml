@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  cyborg-bot:
+    build: .
+    container_name: mc-ai-cyborg
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - MC_HOST=${MC_HOST:-localhost}
+      - MC_PORT=${MC_PORT:-25565}
+      - MC_USERNAME=${MC_USERNAME:-AI_Cyborg}
+      - MC_VERSION=${MC_VERSION:-1.20.1}
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_MODEL=${AI_MODEL:-gpt-4o}
+      - AI_BASE_URL=${AI_BASE_URL:-https://api.openai.com/v1}
+      - AI_PERSONA=${AI_PERSONA:-你是一个友善的Minecraft AI赛博人。}
+      - WEB_PORT=3000
+      - WEB_HOST=0.0.0.0
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FILE=logs/bot.log
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - cyborg-net
+
+networks:
+  cyborg-net:
+    driver: bridge

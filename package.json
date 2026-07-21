@@ -1,0 +1,45 @@
+{
+  "name": "minecraft-ai-cyborg",
+  "version": "1.0.0",
+  "description": "我的世界AI赛博人 - Minecraft AI Cyborg powered by Mineflayer",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "bot": "ts-node src/bot/index.ts",
+    "server": "ts-node src/server/index.ts",
+    "test": "node dist/test-bots.js",
+    "test:bots": "ts-node src/test-bots.ts",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "minecraft",
+    "mineflayer",
+    "ai",
+    "bot",
+    "cyborg"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mineflayer": "^4.37.1",
+    "mineflayer-collectblock": "^1.6.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "mineflayer-pvp": "^1.3.2",
+    "openai": "^6.48.0",
+    "prismarine-viewer": "^1.33.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "winston": "^3.19.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "typescript": "^5.5.4"
+  }
+}

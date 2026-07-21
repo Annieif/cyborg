@@ -1,6 +1,6 @@
 {
   "name": "minecraft-ai-cyborg",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "我的世界AI赛博人 - Minecraft AI Cyborg powered by Mineflayer",
   "main": "dist/index.js",
   "scripts": {
@@ -31,7 +31,6 @@
     "mineflayer-pathfinder": "^2.4.5",
     "mineflayer-pvp": "^1.3.2",
     "openai": "^6.48.0",
-    "prismarine-viewer": "^1.33.0",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "winston": "^3.19.0",

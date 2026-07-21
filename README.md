@@ -1992,6 +1992,19 @@ curl -X POST http://localhost:3000/api/exp/record -H "Content-Type: application/
 
 ## 更新日志
 
+### v1.0.1 (2026-07-21)
+
+**Bug 修复 + 代码质量优化**
+
+- 修复代理模式下 AI 仍会回复消息的 bug（`handleChatMessage` 现检查 `proxyMode`）
+- Claude API 提供商重写：从 OpenAI 兼容格式改为原生 Anthropic Messages API（支持 `x-api-key` 认证、`system` 分离、`tool_use` 格式）
+- `/api/health` 响应格式扁平化，移除冗余嵌套
+- 新增 `/api/version` 端点（返回版本号、Node 版本、运行时间）
+- 前端 WebSocket URL 从硬编码 `localhost:3000` 改为相对路径 `io()`
+- 移除未使用的 `prismarine-viewer` 依赖
+- `experience/` 目录加入 `.gitignore`
+- 更新模型列表：Claude 新增 `claude-3-5-sonnet-20241022` 和 `claude-3-5-haiku-20241022`
+
 ### v1.0.0 (2026-07-21)
 
 **初始版本**

@@ -51,7 +51,23 @@ export class WebServer {
 
     this.app.get('/api/health', (_req, res) => {
       const report = this.bot?.getHealth()?.getReport();
-      res.json({ status: report?.status ?? 'unknown', timestamp: new Date().toISOString(), report });
+      res.json({
+        status: report?.status ?? 'unknown',
+        timestamp: new Date().toISOString(),
+        ...report && report,
+      });
+    });
+
+    // === 版本信息 ===
+    this.app.get('/api/version', (_req, res) => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pkg = require('../../package.json');
+      res.json({
+        version: pkg.version,
+        name: pkg.name,
+        node: process.version,
+        uptime: process.uptime(),
+      });
     });
 
     // === 真人代理 API ===

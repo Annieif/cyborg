@@ -164,6 +164,7 @@ export class CyborgBot extends EventEmitter {
   /** 处理聊天消息（AI 回复） */
   async handleChatMessage(username: string, message: string): Promise<void> {
     if (!this.conversation) return;
+    if (this.proxyMode) return; // 代理模式下不触发 AI 回复
     const logger = getLogger();
 
     try {

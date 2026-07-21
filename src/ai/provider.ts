@@ -113,10 +113,168 @@ export class OpenAIProvider implements AIProvider {
   }
 }
 
-/** Claude API 提供商 (兼容 OpenAI 格式) */
-export class ClaudeProvider extends OpenAIProvider {
+/** Claude API 提供商 (Anthropic Messages API 原生格式) */
+export class ClaudeProvider implements AIProvider {
   readonly name = 'claude';
-  readonly models = ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'];
+  readonly models = [
+    'claude-3-5-sonnet-20241022',
+    'claude-3-5-haiku-20241022',
+    'claude-3-opus-20240229',
+    'claude-3-sonnet-20240229',
+    'claude-3-haiku-20240307',
+  ];
+
+  private apiKey: string;
+  private baseUrl: string;
+  private model: string;
+  private temperature: number;
+  private maxTokens: number;
+
+  constructor() {
+    const config = getConfig();
+    this.apiKey = config.ai.apiKey;
+    this.baseUrl = config.ai.baseUrl;
+    this.model = config.ai.model;
+    this.temperature = config.ai.temperature;
+    this.maxTokens = 1024;
+  }
+
+  async chat(messages: ChatMessage[], tools?: BotTool[]): Promise<AIResponse> {
+    const logger = getLogger();
+
+    // 分离 system prompt 和普通消息
+    let systemPrompt = '';
+    const anthropicMessages: Array<{ role: 'user' | 'assistant'; content: string | Array<Record<string, unknown>> }> = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        systemPrompt += (systemPrompt ? '\n' : '') + (typeof msg.content === 'string' ? msg.content : '');
+      } else if (msg.role === 'user' || msg.role === 'assistant') {
+        const content = typeof msg.content === 'string' ? msg.content : '';
+        // 处理已有的 tool_calls（assistant 消息中的工具调用）
+        if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+          const contentBlocks: Array<Record<string, unknown>> = [];
+          if (content) {
+            contentBlocks.push({ type: 'text', text: content });
+          }
+          for (const tc of msg.tool_calls) {
+            contentBlocks.push({
+              type: 'tool_use',
+              id: tc.id,
+              name: tc.function.name,
+              input: JSON.parse(tc.function.arguments),
+            });
+          }
+          anthropicMessages.push({ role: 'assistant', content: contentBlocks });
+        } else if (msg.role === 'user' && msg.tool_call_id) {
+          // tool result message
+          anthropicMessages.push({
+            role: 'user',
+            content: [{
+              type: 'tool_result',
+              tool_use_id: msg.tool_call_id,
+              content: content,
+            }],
+          });
+        } else {
+          anthropicMessages.push({ role: msg.role as 'user' | 'assistant', content });
+        }
+      }
+    }
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      max_tokens: this.maxTokens,
+      messages: anthropicMessages,
+      temperature: this.temperature,
+    };
+
+    if (systemPrompt) {
+      body.system = systemPrompt;
+    }
+
+    if (tools && tools.length > 0) {
+      body.tools = tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters,
+      }));
+    }
+
+    logger.debug('Claude API request', { model: this.model, msgCount: anthropicMessages.length });
+
+    const url = `${this.baseUrl}/messages`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('Claude API error', { status: response.status, error: errorText });
+      throw new Error(`Claude API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json() as {
+      content: Array<{
+        type: string;
+        text?: string;
+        id?: string;
+        name?: string;
+        input?: Record<string, unknown>;
+      }>;
+      stop_reason: string;
+      usage?: {
+        input_tokens: number;
+        output_tokens: number;
+      };
+    };
+
+    // 提取文本和工具调用
+    let textContent = '';
+    const toolCalls: ToolCall[] = [];
+
+    for (const block of data.content) {
+      if (block.type === 'text' && block.text) {
+        textContent += block.text;
+      } else if (block.type === 'tool_use') {
+        toolCalls.push({
+          id: block.id || '',
+          type: 'function',
+          function: {
+            name: block.name || '',
+            arguments: JSON.stringify(block.input || {}),
+          },
+        });
+      }
+    }
+
+    const result: AIResponse = {
+      message: {
+        role: 'assistant',
+        content: textContent,
+        tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      },
+      finishReason: data.stop_reason === 'tool_use' ? 'tool_calls' : 'stop',
+      usage: data.usage ? {
+        promptTokens: data.usage.input_tokens,
+        completionTokens: data.usage.output_tokens,
+        totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+      } : undefined,
+    };
+
+    logger.debug('Claude API response', {
+      finishReason: result.finishReason,
+      tokens: result.usage?.totalTokens,
+    });
+
+    return result;
+  }
 }
 
 /** 自定义 OpenAI 兼容提供商 */

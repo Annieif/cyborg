@@ -42,7 +42,7 @@ function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const s = io('http://localhost:3000');
+    const s = io();
     setSocket(s);
 
     s.on('connect', () => setConnected(true));
@@ -141,7 +141,6 @@ function App() {
         messages={messages}
         onSend={handleSend}
         messagesEndRef={messagesEndRef}
-        proxyMode={proxyMode}
       />
       <div className="right-panel">
         <PlayerList players={players} status={status} />

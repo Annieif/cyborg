@@ -9,25 +9,39 @@ export class OpenAIProvider implements AIProvider {
   private apiKey: string;
   private baseUrl: string;
   private model: string;
+  private visionModel: string;
   private temperature: number;
+  private visionEnabled: boolean;
 
   constructor() {
     const config = getConfig();
     this.apiKey = config.ai.apiKey;
     this.baseUrl = config.ai.baseUrl;
     this.model = config.ai.model;
+    this.visionModel = config.ai.visionModel;
     this.temperature = config.ai.temperature;
+    this.visionEnabled = config.ai.vision;
   }
 
   async chat(messages: ChatMessage[], tools?: BotTool[]): Promise<AIResponse> {
     const logger = getLogger();
     const url = `${this.baseUrl}/chat/completions`;
 
+    // 检测是否有视觉内容，自动切换视觉模型
+    const hasVision = this.visionEnabled && messages.some(
+      (m) => Array.isArray(m.content) && m.content.some((c) => c.type === 'image_url')
+    );
+    const effectiveModel = hasVision ? this.visionModel : this.model;
+
     const body: Record<string, unknown> = {
-      model: this.model,
+      model: effectiveModel,
       messages,
       temperature: this.temperature,
     };
+
+    if (hasVision) {
+      body.max_tokens = 4096; // 视觉模式响应可能较长
+    }
 
     if (tools && tools.length > 0) {
       body.tools = tools.map((t) => ({
@@ -41,7 +55,7 @@ export class OpenAIProvider implements AIProvider {
       body.tool_choice = 'auto';
     }
 
-    logger.debug('AI request', { model: this.model, msgCount: messages.length });
+    logger.debug('AI request', { model: effectiveModel, msgCount: messages.length, vision: hasVision });
 
     const response = await fetch(url, {
       method: 'POST',

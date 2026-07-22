@@ -1,53 +1,30 @@
 # 进度日志
 
 ## 会话 1: 2026-07-21 — 项目初始化
+- 创建规划文件
+- 初始化项目结构
+- 阶段1-6全部完成
 
+## 会话 2: 2026-07-21 — v1.0.1 优化
+- 8 项 Bug 修复和代码质量优化
+- 编译验证通过，已推送到 GitHub
+
+## 会话 3: 2026-07-21 — v1.0.2
 ### 完成事项
-- 创建规划文件 (task_plan.md, findings.md, progress.md)
-- 初始化项目目录结构
-- 创建 TypeScript 配置
-- 安装核心依赖
+- **上下文优化**: Token 估算器 + 对话摘要压缩 + AI_MAX_TOKENS
+- **正版兼容**: MC_AUTH 配置 + Microsoft OAuth 认证
+- **AI更多操作**: 7 个新工具 (eatFood/sleep/fish/openChest/craftItem/smeltItem/enchantItem)
+- **多模态**: ChatMessage image_url + OpenAI vision + screenshot 工具
+- 前后端编译 0 errors
+- README 更新日志 + 配置表 + 工具参考表
 
-### 当前状态
-阶段 1: 项目初始化与核心架构 — 进行中
-
-### 下一步
-- 实现 Mineflayer Bot 核心连接
-- 创建 AI 接口抽象层
-
-## 会话 2: 2026-07-21 — 全部完成
-
-### 完成事项
-- 全部 6 个阶段完成
-- 后端: 10 个源文件，Mineflayer Bot + AI 接口 + 12 工具 + 命令系统 + WebSocket 服务
-- 前端: 5 个组件，React + Vite，SVG 矢量图
-- 生产级: 日志/健康监控/速率限制/重连/Docker
-- 文档: README.md 完整
-- 构建: 前后端 TypeScript 编译 0 errors
-
-### 最终状态
-全部 6 阶段完成。Goal status: complete。
-
-### 生成文件清单
-- `src/ai/types.ts` — AI 类型定义
-- `src/ai/provider.ts` — AI 提供商 (OpenAI/Claude/Custom)
-- `src/ai/conversation.ts` — 对话管理器
-- `src/ai/index.ts` — AI 模块导出
-- `src/bot/index.ts` — Bot 核心类
-- `src/bot/tools.ts` — 12 个 AI 工具
-- `src/bot/commands.ts` — 9 个玩家命令
-- `src/config/index.ts` — 配置管理 (Zod)
-- `src/server/index.ts` — WebSocket 服务器
-- `src/utils/logger.ts` — 日志系统
-- `src/utils/rateLimiter.ts` — 速率限制
-- `src/utils/healthMonitor.ts` — 健康监控
-- `src/index.ts` — 主入口
-- `frontend/src/App.tsx` — React 主应用
-- `frontend/src/components/StatusPanel.tsx` — 状态面板
-- `frontend/src/components/ChatArea.tsx` — 聊天区域
-- `frontend/src/components/PlayerList.tsx` — 玩家列表
-- `frontend/src/components/SVGCharts.tsx` — SVG 矢量图
-- `Dockerfile` — Docker 构建
-- `docker-compose.yml` — 一键部署
-- `start.bat` — Windows 启动脚本
-- `README.md` — 项目文档
+### 修改文件
+- `src/ai/conversation.ts` — 重写：Token估算 + 摘要压缩
+- `src/ai/types.ts` — ChatMessage content 支持 image_url
+- `src/ai/provider.ts` — OpenAI 视觉模型自动切换
+- `src/bot/tools.ts` — 重写：7 个新工具 + screenshot 回调
+- `src/bot/index.ts` — MC_AUTH + takeScreenshot
+- `src/config/index.ts` — 新增 4 个配置项
+- `package.json` — v1.0.2 + optionalDependencies
+- `.env.example` — 新增配置项
+- `README.md` — 更新日志 + 配置表 + 工具参考

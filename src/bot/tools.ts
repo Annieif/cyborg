@@ -1,12 +1,15 @@
 import { Bot } from 'mineflayer';
 import { BotTool } from '../ai/types';
 
+/** 截图回调类型 */
+export type ScreenshotCallback = () => Promise<string | null>;
+
 /**
  * 创建 Bot 可用工具集（供 AI Function Calling 使用）
  */
-export function createBotTools(bot: Bot): BotTool[] {
+export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): BotTool[] {
   const botAny = bot as any;
-  return [
+  const tools: BotTool[] = [
     // === 移动相关 ===
     {
       name: 'moveTo',
@@ -167,8 +170,6 @@ export function createBotTools(bot: Bot): BotTool[] {
       },
       execute: async (args) => {
         const { radius = 16 } = args as { radius: number };
-        const collectBlock = require('mineflayer-collectblock').plugin;
-        // 找到最近的掉落物
         const entities = Object.values(bot.entities).filter(
           (e) => e.name === 'item' || e.name === 'Item'
         );
@@ -261,5 +262,243 @@ export function createBotTools(bot: Bot): BotTool[] {
         return `正在攻击 ${entity.name || '未知生物'}`;
       },
     },
+
+    // === 生存操作 ===
+    {
+      name: 'eatFood',
+      description: '自动进食。从背包中寻找食物并食用，恢复饥饿值。',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      execute: async () => {
+        const foodNames = [
+          'cooked_beef', 'cooked_porkchop', 'cooked_mutton', 'cooked_chicken',
+          'cooked_rabbit', 'cooked_cod', 'cooked_salmon', 'steak', 'porkchop',
+          'mutton', 'chicken', 'rabbit', 'cod', 'salmon', 'bread',
+          'apple', 'golden_apple', 'golden_carrot', 'carrot', 'baked_potato',
+          'potato', 'beetroot', 'beetroot_soup', 'mushroom_stew', 'rabbit_stew',
+          'pumpkin_pie', 'cookie', 'melon_slice', 'sweet_berries', 'glow_berries',
+          'chorus_fruit', 'dried_kelp', 'tropical_fish', 'rotten_flesh',
+        ];
+        const foodItem = bot.inventory.items().find((item) =>
+          foodNames.includes(item.name)
+        );
+        if (!foodItem) return '背包中没有食物';
+        await bot.equip(foodItem, 'hand');
+        await bot.consume();
+        return `已食用 ${foodItem.name}`;
+      },
+    },
+
+    {
+      name: 'sleep',
+      description: '在附近的床上睡觉。需要附近有床且是夜晚或雷暴天气。',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      execute: async () => {
+        const bed = bot.findBlock({
+          matching: (block) => block.name.includes('bed'),
+          maxDistance: 5,
+        });
+        if (!bed) return '附近没有床';
+        try {
+          await bot.sleep(bed);
+          return '已躺下睡觉';
+        } catch (err) {
+          return `无法睡觉: ${err}`;
+        }
+      },
+    },
+
+    {
+      name: 'fish',
+      description: '在附近水域钓鱼。需要手持钓鱼竿。',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      execute: async () => {
+        const fishingRod = bot.inventory.items().find((i) => i.name === 'fishing_rod');
+        if (!fishingRod) return '背包中没有钓鱼竿';
+        await bot.equip(fishingRod, 'hand');
+        const waterBlock = bot.findBlock({
+          matching: (block) => block.name === 'water',
+          maxDistance: 10,
+        });
+        if (!waterBlock) return '附近没有水域';
+        try {
+          await bot.lookAt(waterBlock.position);
+          await bot.fish();
+          return '开始钓鱼...';
+        } catch (err) {
+          return `钓鱼失败: ${err}`;
+        }
+      },
+    },
+
+    {
+      name: 'openChest',
+      description: '打开附近的箱子并查看内容。',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      execute: async () => {
+        const chest = bot.findBlock({
+          matching: (block) => block.name === 'chest' || block.name === 'trapped_chest' || block.name === 'barrel' || block.name === 'shulker_box',
+          maxDistance: 5,
+        });
+        if (!chest) return '附近没有箱子';
+        try {
+          const container = await bot.openContainer(chest);
+          const items = container.containerItems();
+          container.close();
+          if (items.length === 0) return '箱子为空';
+          const summary: Record<string, number> = {};
+          for (const item of items) {
+            summary[item.name] = (summary[item.name] || 0) + item.count;
+          }
+          return '箱子内容:\n' + Object.entries(summary)
+            .map(([name, count]) => `${name} x${count}`)
+            .join('\n');
+        } catch (err) {
+          return `无法打开箱子: ${err}`;
+        }
+      },
+    },
+
+    {
+      name: 'craftItem',
+      description: '在工作台合成物品。需要附近有工作台，背包中有足够材料。',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemName: { type: 'string', description: '要合成的物品名称（英文）' },
+          count: { type: 'number', description: '合成数量', default: 1 },
+        },
+        required: ['itemName'],
+      },
+      execute: async (args) => {
+        const { itemName, count = 1 } = args as { itemName: string; count: number };
+        const table = bot.findBlock({
+          matching: (block) => block.name === 'crafting_table',
+          maxDistance: 5,
+        });
+        if (!table) return '附近没有工作台，无法合成';
+        try {
+          const recipe = bot.recipesFor(
+            require('minecraft-data')(bot.version).itemsByName[itemName]?.id || 0,
+            null,
+            1,
+            true
+          )[0];
+          if (!recipe) return `没有 ${itemName} 的合成配方`;
+          await bot.craft(recipe, count, table);
+          return `已合成 ${count} 个 ${itemName}`;
+        } catch (err) {
+          return `合成失败: ${err}`;
+        }
+      },
+    },
+
+    {
+      name: 'smeltItem',
+      description: '在熔炉中熔炼物品。需要附近有熔炉，背包中有燃料和原料。',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemName: { type: 'string', description: '要熔炼的原料名称（英文）' },
+        },
+        required: ['itemName'],
+      },
+      execute: async (args) => {
+        const { itemName } = args as { itemName: string };
+        const furnace = bot.findBlock({
+          matching: (block) => block.name === 'furnace' || block.name === 'blast_furnace',
+          maxDistance: 5,
+        });
+        if (!furnace) return '附近没有熔炉';
+        const item = bot.inventory.items().find(
+          (i) => i.name.toLowerCase().includes(itemName.toLowerCase())
+        );
+        if (!item) return `背包中没有 ${itemName}`;
+        try {
+          const furnaceBlock = await bot.openFurnace(furnace);
+          // 放入原料
+          await furnaceBlock.putInput(item.type, null, 1);
+          // 自动寻找燃料
+          const fuelItems = ['coal', 'charcoal', 'oak_planks', 'birch_planks', 'spruce_planks',
+            'jungle_planks', 'acacia_planks', 'dark_oak_planks', 'mangrove_planks',
+            'cherry_planks', 'bamboo_planks', 'crimson_planks', 'warped_planks', 'lava_bucket'];
+          const fuel = bot.inventory.items().find((i) => fuelItems.includes(i.name));
+          if (fuel) {
+            await furnaceBlock.putFuel(fuel.type, null, 1);
+          }
+          furnaceBlock.close();
+          return `已将 ${itemName} 放入熔炉熔炼`;
+        } catch (err) {
+          return `熔炼失败: ${err}`;
+        }
+      },
+    },
+
+    {
+      name: 'enchantItem',
+      description: '在附魔台给物品附魔。需要附近有附魔台，手中持有可附魔物品，且有足够经验等级。',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+      execute: async () => {
+        const table = bot.findBlock({
+          matching: (block) => block.name === 'enchanting_table',
+          maxDistance: 5,
+        });
+        if (!table) return '附近没有附魔台';
+        const heldItem = bot.heldItem;
+        if (!heldItem) return '手中没有物品';
+        try {
+          const enchantTable = await bot.openEnchantmentTable(table);
+          const enchantments = enchantTable.enchantments;
+          enchantTable.close();
+          if (!enchantments || enchantments.length === 0) {
+            return '附魔台没有可用的附魔选项';
+          }
+          return `附魔台可用选项: ${enchantments.map((e: any) =>
+            `${e.level}级 - ${e.name || '未知附魔'}`
+          ).join(', ')}`;
+        } catch (err) {
+          return `附魔失败: ${err}`;
+        }
+      },
+    },
   ];
+
+  // === 多模态：截图工具（实验性） ===
+  if (onScreenshot) {
+    tools.push({
+      name: 'screenshot',
+      description: '截取当前游戏画面截图，用于分析周围环境。仅在配置了视觉模式时可用。注意：此操作消耗大量 token。',
+      parameters: {
+        type: 'object',
+        properties: {
+          detail: { type: 'string', description: '截图质量: low/high/auto', default: 'low' },
+        },
+      },
+      execute: async () => {
+        try {
+          const base64 = await onScreenshot();
+          if (!base64) return '截图功能不可用（未安装 prismarine-viewer）';
+          return `截图已捕获 (base64 长度: ${base64.length})`;
+        } catch (err) {
+          return `截图失败: ${err}`;
+        }
+      },
+    });
+  }
+
+  return tools;
 }

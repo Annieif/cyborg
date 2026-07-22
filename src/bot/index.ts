@@ -2,7 +2,7 @@ import mineflayer from 'mineflayer';
 import { getConfig } from '../config';
 import { getLogger } from '../utils/logger';
 import { ConversationManager } from '../ai/conversation';
-import { createBotTools } from './tools';
+import { createBotTools, ScreenshotCallback } from './tools';
 import { createCommandSystem } from './commands';
 import { RateLimiter } from '../utils/rateLimiter';
 import { HealthMonitor } from '../utils/healthMonitor';
@@ -64,7 +64,7 @@ export class CyborgBot extends EventEmitter {
       port: config.minecraft.port,
       username: config.minecraft.username,
       version: config.minecraft.version,
-      // 心跳检测
+      auth: config.minecraft.auth as 'offline' | 'microsoft',
       checkTimeoutInterval: 30000,
     });
 
@@ -76,7 +76,7 @@ export class CyborgBot extends EventEmitter {
       undefined, // 使用默认 persona
       this.expMemory.getSystemPrompt()
     );
-    this.conversation.registerTools(createBotTools(this.bot));
+    this.conversation.registerTools(createBotTools(this.bot, this.takeScreenshot.bind(this)));
 
     createCommandSystem(this.bot, this.conversation);
 
@@ -392,6 +392,28 @@ export class CyborgBot extends EventEmitter {
 
   getHealth(): HealthMonitor { return this.health; }
   getExpMemory(): ExperienceMemory { return this.expMemory; }
+
+  /** 截图（实验性多模态，需要 prismarine-viewer） */
+  async takeScreenshot(): Promise<string | null> {
+    if (!this.bot) return null;
+    try {
+      // 尝试使用 prismarine-viewer 进行截图
+      const viewer = require('prismarine-viewer');
+      const { createCanvas } = require('canvas');
+      const canvas = createCanvas(640, 480);
+      const ctx = canvas.getContext('2d');
+
+      // 渲染当前视野
+      const worldView = viewer.headless;
+      if (worldView) {
+        await worldView.render(this.bot, canvas);
+        return canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+      }
+      return null;
+    } catch {
+      return null; // prismarine-viewer 或 canvas 未安装
+    }
+  }
 
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;

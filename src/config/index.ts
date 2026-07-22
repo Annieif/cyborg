@@ -11,6 +11,7 @@ const configSchema = z.object({
     port: z.coerce.number().int().positive().default(25565),
     username: z.string().default('AI_Cyborg'),
     version: z.string().default('1.20.1'),
+    auth: z.enum(['offline', 'microsoft']).default('offline'),
   }),
   ai: z.object({
     provider: z.enum(['openai', 'claude', 'custom']).default('openai'),
@@ -19,7 +20,10 @@ const configSchema = z.object({
     baseUrl: z.string().url().default('https://api.openai.com/v1'),
     persona: z.string().default('你是一个友善的Minecraft AI赛博人。'),
     maxContextMessages: z.coerce.number().int().positive().default(20),
+    maxTokens: z.coerce.number().int().positive().default(8000),
     temperature: z.coerce.number().min(0).max(2).default(0.7),
+    vision: z.coerce.boolean().default(false),
+    visionModel: z.string().default('gpt-4o'),
   }),
   web: z.object({
     port: z.coerce.number().int().positive().default(3000),
@@ -44,6 +48,7 @@ export function loadConfig(): Config {
       port: process.env.MC_PORT,
       username: process.env.MC_USERNAME,
       version: process.env.MC_VERSION,
+      auth: process.env.MC_AUTH,
     },
     ai: {
       provider: process.env.AI_PROVIDER,
@@ -52,7 +57,10 @@ export function loadConfig(): Config {
       baseUrl: process.env.AI_BASE_URL,
       persona: process.env.AI_PERSONA,
       maxContextMessages: process.env.AI_MAX_CONTEXT,
+      maxTokens: process.env.AI_MAX_TOKENS,
       temperature: process.env.AI_TEMPERATURE,
+      vision: process.env.AI_VISION,
+      visionModel: process.env.AI_VISION_MODEL,
     },
     web: {
       port: process.env.WEB_PORT,

@@ -1,7 +1,7 @@
 /** AI 对话消息 */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
+  content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }>;
   name?: string;
   tool_calls?: ToolCall[];
   tool_call_id?: string;

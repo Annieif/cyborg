@@ -13,6 +13,15 @@ async function main(): Promise<void> {
   logger.info(`AI: ${config.ai.provider} / ${config.ai.model}`);
   logger.info(`Web: http://${config.web.host}:${config.web.port}`);
 
+  // 全局错误捕获：防止未处理错误导致进程崩溃
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception:', err.message);
+    // 不退出，保持 Web 服务器运行
+  });
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled rejection:', reason);
+  });
+
   // 创建 Bot
   const bot = new CyborgBot();
 
@@ -25,14 +34,13 @@ async function main(): Promise<void> {
   // 启动 Web 服务器
   server.start();
 
-  // 启动 Bot
-  try {
-    await bot.start();
+  // 启动 Bot（不阻塞，连接失败时自动重试）
+  bot.start().then(() => {
     logger.info('Bot connected successfully!');
-  } catch (err) {
-    logger.error('Failed to start bot:', err);
-    logger.info('Web dashboard still available for configuration.');
-  }
+  }).catch((err) => {
+    logger.error('Failed to start bot:', err.message);
+    logger.info('Bot will retry automatically. Web dashboard is available for configuration.');
+  });
 
   // 优雅关闭
   process.on('SIGINT', async () => {
@@ -50,7 +58,4 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+main();

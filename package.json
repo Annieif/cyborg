@@ -1,6 +1,6 @@
 {
   "name": "minecraft-ai-cyborg",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "我的世界AI赛博人 - Minecraft AI Cyborg powered by Mineflayer",
   "main": "dist/index.js",
   "scripts": {

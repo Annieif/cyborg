@@ -95,6 +95,7 @@
 - **Function Calling**: AI 可自主调用 20 个工具与世界交互（移动、挖掘、放置、战斗、合成、熔炼、钓鱼等）
 - **角色设定**: 通过 System Prompt 自定义 Bot 的性格、语气、行为模式
 - **上下文管理**: 滑动窗口 + 可配置轮数，AI 记住最近对话
+- **类人机自主模式**: 无人聊天时自动探索、挖矿、收集、社交，有人聊天立即退出
 
 ### 真人代理模式
 - **无需客户端**: 在 Web Dashboard 上通过 WASD 按钮操控 Bot 在 Minecraft 世界中移动
@@ -320,6 +321,9 @@ npm start
 | `AI_MAX_TOKENS` | number | `8000` | AI 上下文 token 预算（超出时自动摘要压缩） |
 | `AI_VISION` | boolean | `false` | 启用多模态视觉分析（实验性，耗 token） |
 | `AI_VISION_MODEL` | string | `gpt-4o` | 视觉模型名称（需支持 vision） |
+| `AI_AUTONOMOUS` | boolean | `false` | 启用类人机自主模式（空闲时自动活动） |
+| `AI_AUTONOMOUS_IDLE_TIMEOUT` | number | `60` | 空闲超时（秒），超时后激活自主模式 |
+| `AI_AUTONOMOUS_INTERVAL` | number | `30` | 自主活动切换间隔（秒） |
 
 ### 配置参数深度解析
 
@@ -900,6 +904,46 @@ await Promise.all([bot1.start(), bot2.start(), bot3.start()]);
 3. **API Key 共享**: 多个 Bot 可以共用同一个 API Key
 4. **经验文件独立**: 同一服务器上的多个 Bot 共享同一个 `exp.md`
 5. **资源消耗**: 每个 Bot 额外消耗约 100-200MB 内存和少量 CPU
+
+---
+
+### 类人机自主模式
+
+开启后，Bot 在无人聊天时会自动活跃——探索、挖矿、收集、社交，像真人玩家一样。
+
+#### 配置
+
+```env
+AI_AUTONOMOUS=true
+AI_AUTONOMOUS_IDLE_TIMEOUT=60
+AI_AUTONOMOUS_INTERVAL=30
+```
+
+#### 5 种自主活动
+
+| 活动 | 行为 | 说明 |
+|------|------|------|
+| **探索** | 随机移动到附近 40 格范围内 | 模拟玩家闲逛 |
+| **挖矿** | 在 32 格范围内搜索 16 种矿石 | 发现后自动走过去 |
+| **收集** | 收集附近掉落物（最多 3 个） | 自动拾取 |
+| **社交** | 走向最近玩家 + 随机话题聊天 | 从 20 个话题库中抽取 |
+| **休息** | 原地不动 | 模拟玩家 AFK |
+
+#### 社交行为
+
+- 有人在线时：自动走向最近玩家（3 格内），随机发送话题
+- 无人时：自言自语（"好安静啊，有人在线吗？"等）
+- 有人聊天时：立即退出自主模式，正常 AI 回复
+
+#### 话题库示例
+
+```
+"请问你知道末地烛的合成配方吗？我记不太清了。"
+"嘿！要不要一起去采矿？"
+"你的剑看起来很厉害，是什么附魔？"
+"有人需要帮忙吗？我可以帮忙挖矿或者收集材料。"
+"你好！能给我一点食物吗？我快饿死了。"
+```
 
 ---
 
@@ -1523,7 +1567,8 @@ Bot 的 CPU 消耗主要来自：
 │   ├── bot/                      # Bot 核心
 │   │   ├── index.ts              # CyborgBot 主类 (Mineflayer 连接 + 事件处理 + 重连 + 代理)
 │   │   ├── tools.ts              # 20 个 AI Function Calling 工具定义
-│   │   └── commands.ts           # 8 个玩家命令系统 (!help, !status, !come, ...)
+│   │   ├── commands.ts           # 8 个玩家命令系统 (!help, !status, !come, ...)
+│   │   └── autonomous.ts         # 类人机自主行为状态机
 │   ├── server/                   # Web 服务层
 │   │   └── index.ts              # Express + Socket.io 服务器 + REST API + WebSocket 路由
 │   ├── config/                   # 配置管理
@@ -1934,6 +1979,8 @@ WEB_PORT=3000                  # 面板端口
 # 进阶
 AI_MAX_CONTEXT=20              # 上下文轮数 (5-50)
 AI_TEMPERATURE=0.7             # 创造力 (0-2)
+AI_MAX_TOKENS=8000             # token 预算
+AI_AUTONOMOUS=true             # 类人机自主模式
 LOG_LEVEL=info                 # debug|info|warn|error
 ```
 
@@ -2015,6 +2062,18 @@ curl -X POST http://localhost:3000/api/exp/record -H "Content-Type: application/
 ---
 
 ## 更新日志
+
+### v1.0.3 (2026-07-21)
+
+**类人机自主模式**
+
+- 新增类人机自主模式：Bot 空闲时自动活跃，执行探索、挖矿、收集、社交、休息等随机活动
+- 主动社交：自动走向附近玩家，从 20 个话题库中随机选择聊天（如询问末地烛配方、邀请采矿等）
+- 无人时自言自语，有人聊天时立即退出自主模式并正常回复
+- 空闲检测：`AI_AUTONOMOUS_IDLE_TIMEOUT`（默认 60 秒无聊天后激活）
+- 活动间隔：`AI_AUTONOMOUS_INTERVAL`（默认 30 秒切换活动）
+- 新增 `AI_AUTONOMOUS` 配置项（默认 false）
+- 新增 `src/bot/autonomous.ts` — 自主行为状态机模块
 
 ### v1.0.2 (2026-07-21)
 

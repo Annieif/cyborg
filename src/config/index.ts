@@ -24,6 +24,9 @@ const configSchema = z.object({
     temperature: z.coerce.number().min(0).max(2).default(0.7),
     vision: z.coerce.boolean().default(false),
     visionModel: z.string().default('gpt-4o'),
+    autonomous: z.coerce.boolean().default(false),
+    autonomousIdleTimeout: z.coerce.number().int().positive().default(60),
+    autonomousInterval: z.coerce.number().int().positive().default(30),
   }),
   web: z.object({
     port: z.coerce.number().int().positive().default(3000),
@@ -61,6 +64,9 @@ export function loadConfig(): Config {
       temperature: process.env.AI_TEMPERATURE,
       vision: process.env.AI_VISION,
       visionModel: process.env.AI_VISION_MODEL,
+      autonomous: process.env.AI_AUTONOMOUS,
+      autonomousIdleTimeout: process.env.AI_AUTONOMOUS_IDLE_TIMEOUT,
+      autonomousInterval: process.env.AI_AUTONOMOUS_INTERVAL,
     },
     web: {
       port: process.env.WEB_PORT,

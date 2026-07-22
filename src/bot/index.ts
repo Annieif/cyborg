@@ -7,6 +7,7 @@ import { createCommandSystem } from './commands';
 import { RateLimiter } from '../utils/rateLimiter';
 import { HealthMonitor } from '../utils/healthMonitor';
 import { ExperienceMemory } from '../utils/experienceMemory';
+import { AutonomousBehavior } from './autonomous';
 import { EventEmitter } from 'events';
 
 const pathfinder = require('mineflayer-pathfinder');
@@ -43,6 +44,7 @@ export class CyborgBot extends EventEmitter {
   private isShuttingDown = false;
   private proxyMode = false; // 真人代理模式
   private expMemory: ExperienceMemory;
+  private autonomous: AutonomousBehavior | null = null; // 类人机自主模式
 
   constructor(host?: string, port?: number) {
     super();
@@ -80,6 +82,10 @@ export class CyborgBot extends EventEmitter {
 
     createCommandSystem(this.bot, this.conversation);
 
+    // 启动类人机自主模式
+    this.autonomous = new AutonomousBehavior(this.bot, this.conversation, (msg) => this.safeChat(msg));
+    this.autonomous.start();
+
     this.registerEvents();
 
     return new Promise((resolve) => {
@@ -101,6 +107,9 @@ export class CyborgBot extends EventEmitter {
       if (username === bot.username) return;
       logger.info(`[Chat] ${username}: ${message}`);
       this.emit('chat', username, message);
+
+      // 任何聊天都退出自主模式
+      this.autonomous?.onChat();
 
       if (
         message.startsWith(bot.username) ||
@@ -392,6 +401,7 @@ export class CyborgBot extends EventEmitter {
 
   getHealth(): HealthMonitor { return this.health; }
   getExpMemory(): ExperienceMemory { return this.expMemory; }
+  getAutonomous(): AutonomousBehavior | null { return this.autonomous; }
 
   /** 截图（实验性多模态，需要 prismarine-viewer） */
   async takeScreenshot(): Promise<string | null> {
@@ -417,6 +427,7 @@ export class CyborgBot extends EventEmitter {
 
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
+    this.autonomous?.stop();
     if (this.bot) {
       this.bot.quit('Shutting down');
       this.bot = null;

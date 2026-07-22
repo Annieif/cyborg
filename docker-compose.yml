@@ -2,28 +2,40 @@ version: '3.8'
 
 services:
   cyborg-bot:
-    build: .
+    image: annieif/cyborg:latest
     container_name: mc-ai-cyborg
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
+      # 必填：AI API Key（网页向导中填写，或这里直接设）
+      - AI_API_KEY=${AI_API_KEY:-}
+      # 必填：Minecraft 服务器地址
       - MC_HOST=${MC_HOST:-localhost}
+      # 以下全部有默认值，可省略
       - MC_PORT=${MC_PORT:-25565}
       - MC_USERNAME=${MC_USERNAME:-AI_Cyborg}
       - MC_VERSION=${MC_VERSION:-1.20.1}
+      - MC_AUTH=${MC_AUTH:-offline}
       - AI_PROVIDER=${AI_PROVIDER:-openai}
-      - AI_API_KEY=${AI_API_KEY}
-      - AI_MODEL=${AI_MODEL:-gpt-4o}
+      - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
       - AI_BASE_URL=${AI_BASE_URL:-https://api.openai.com/v1}
-      - AI_PERSONA=${AI_PERSONA:-你是一个友善的Minecraft AI赛博人。}
+      - AI_PERSONA=${AI_PERSONA:-你是一个友善的Minecraft AI赛博人。你可以与玩家聊天、帮助他们建造、探索世界。你的名字是赛博人。}
+      - AI_MAX_CONTEXT=${AI_MAX_CONTEXT:-20}
+      - AI_MAX_TOKENS=${AI_MAX_TOKENS:-8000}
+      - AI_TEMPERATURE=${AI_TEMPERATURE:-0.7}
+      - AI_ACTION_CHAIN=${AI_ACTION_CHAIN:-true}
+      - AI_VISION=${AI_VISION:-false}
+      - AI_AUTONOMOUS=${AI_AUTONOMOUS:-false}
+      - AI_MAX_TOOL_LOOPS=${AI_MAX_TOOL_LOOPS:-5}
       - WEB_PORT=3000
       - WEB_HOST=0.0.0.0
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_FILE=logs/bot.log
     volumes:
       - ./logs:/app/logs
-      - ./config:/app/config:ro
+      - ./experience:/app/experience
+      - ./.env:/app/.env
     networks:
       - cyborg-net
 

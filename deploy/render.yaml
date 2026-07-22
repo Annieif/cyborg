@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mc-ai-cyborg
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: AI_PROVIDER
+        value: free
+      - key: AI_API_KEY
+        sync: false
+      - key: MC_HOST
+        value: localhost
+      - key: WEB_PORT
+        value: "3000"
+      - key: WEB_HOST
+        value: "0.0.0.0"

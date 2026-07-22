@@ -7,3 +7,12 @@ logs/
 frontend/dist/
 测试服务器/
 experience/
+
+# 编译生成的可执行文件
+cyborg-bot
+cyborg-bot.exe
+cyborg-bot-linux
+cyborg-bot-mac
+
+# 自动生成的前端资源文件
+src/frontendAssets.ts

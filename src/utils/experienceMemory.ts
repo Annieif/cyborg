@@ -162,6 +162,11 @@ export class ExperienceMemory {
     this.save();
   }
 
+  /** 记录聊天消息 */
+  recordChatMessage(username: string, message: string): void {
+    this.recordEvent(`${username}: ${message}`);
+  }
+
   /** 更新备注 */
   setNotes(notes: string): void {
     this.memory.notes = notes;

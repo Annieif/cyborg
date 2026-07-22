@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { Server as SocketIOServer } from 'socket.io';
 import { getConfig } from '../config';
 import { getLogger } from '../utils/logger';
 import { CyborgBot, ProxyCommand } from '../bot';
+import { getFrontendAssets } from '../frontendAssets';
 
 export class WebServer {
   private app: express.Application;
@@ -27,7 +30,39 @@ export class WebServer {
   private setupMiddleware(): void {
     this.app.use(cors());
     this.app.use(express.json());
-    this.app.use(express.static('frontend/dist'));
+
+    // 检测是否为编译后的二进制（无 frontend/dist 目录）
+    const hasFrontendDist = fs.existsSync('frontend/dist');
+
+    if (hasFrontendDist) {
+      // 开发/Docker 模式：从磁盘读取
+      this.app.use(express.static('frontend/dist'));
+    } else {
+      // 二进制模式：从内存读取
+      const assets = getFrontendAssets();
+      this.app.use((req, res, next) => {
+        // 只处理非 API 请求
+        if (req.path.startsWith('/api/')) return next();
+
+        let filePath = req.path === '/' ? '/index.html' : req.path;
+        filePath = filePath.replace(/^\//, '');
+
+        const asset = assets.get(filePath);
+        if (asset) {
+          res.setHeader('Content-Type', asset.contentType);
+          res.send(asset.content);
+        } else {
+          // SPA fallback: 返回 index.html
+          const indexAsset = assets.get('index.html');
+          if (indexAsset) {
+            res.setHeader('Content-Type', indexAsset.contentType);
+            res.send(indexAsset.content);
+          } else {
+            next();
+          }
+        }
+      });
+    }
   }
 
   private setupRoutes(): void {
@@ -89,6 +124,61 @@ export class WebServer {
       if (!cmd.action) return res.status(400).json({ error: 'Missing action' });
       const result = await this.bot.executeProxyCommand(cmd);
       res.json({ success: true, result });
+    });
+
+    // === 配置向导 API ===
+    this.app.get('/api/config/check', (_req, res) => {
+      const config = getConfig();
+      const configured = config.ai.apiKey !== '' || config.ai.provider === 'free' || config.ai.provider === 'ollama';
+      res.json({ configured });
+    });
+
+    this.app.post('/api/config/save', async (req, res) => {
+      try {
+        const { aiProvider, aiApiKey, aiModel, aiBaseUrl, mcHost, mcPort, mcUsername, mcVersion } = req.body;
+        
+        const envContent = [
+          `# AI Cyborg v1.2.0 配置`,
+          `# 由 Web 配置向导自动生成`,
+          ``,
+          `# AI 后端`,
+          `AI_PROVIDER=${aiProvider || 'openai'}`,
+          `AI_API_KEY=${aiApiKey || ''}`,
+          `AI_MODEL=${aiModel || 'gpt-4o-mini'}`,
+          `AI_BASE_URL=${aiBaseUrl || 'https://api.openai.com/v1'}`,
+          ``,
+          `# Minecraft 服务器`,
+          `MC_HOST=${mcHost || 'localhost'}`,
+          `MC_PORT=${mcPort || 25565}`,
+          `MC_USERNAME=${mcUsername || 'AI_Cyborg'}`,
+          `MC_VERSION=${mcVersion || '1.20.1'}`,
+          `MC_AUTH=offline`,
+          ``,
+          `# 其他设置（使用默认值）`,
+          `AI_MAX_CONTEXT=20`,
+          `AI_MAX_TOKENS=8000`,
+          `AI_TEMPERATURE=0.7`,
+          `AI_ACTION_CHAIN=true`,
+          `AI_VISION=false`,
+          `AI_AUTONOMOUS=false`,
+          `AI_MAX_TOOL_LOOPS=5`,
+          `AI_PERSONA=你是一个友善的Minecraft AI赛博人。`,
+          ``,
+          `# Web 服务`,
+          `WEB_PORT=3000`,
+          `WEB_HOST=0.0.0.0`,
+          `LOG_LEVEL=info`,
+        ].join('\n');
+
+        const envPath = path.join(process.cwd(), '.env');
+        fs.writeFileSync(envPath, envContent, 'utf-8');
+
+        getLogger().info('Config saved via web wizard');
+        res.json({ success: true, message: '配置已保存，请重启服务生效' });
+      } catch (e: any) {
+        getLogger().error('Failed to save config:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
     });
 
     // === 经验记忆 API ===

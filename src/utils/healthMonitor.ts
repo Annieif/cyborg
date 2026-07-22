@@ -39,6 +39,11 @@ export class HealthMonitor {
     this.reconnectCount++;
   }
 
+  /** 记录任意活动（移动、视角、挖掘等），用于更新 idleTime */
+  recordActivity(): void {
+    this.lastActivity = Date.now();
+  }
+
   /** 获取健康报告 */
   getReport(): HealthReport {
     const config = getConfig();

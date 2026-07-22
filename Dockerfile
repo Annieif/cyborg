@@ -1,5 +1,5 @@
-# 使用 Node.js 18 LTS 作为基础镜像
-FROM node:18-alpine AS builder
+# 使用 Node.js 20 LTS 作为基础镜像
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY src/ ./src/
 RUN npm run build
 
 # === 前端构建 ===
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -28,7 +28,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # === 生产镜像 ===
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -44,8 +44,8 @@ COPY --from=builder /app/package.json ./
 # 复制前端产物
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# 创建日志目录
-RUN mkdir -p logs && chown -R cyborg:cyborg /app
+# 创建日志和经验记忆目录
+RUN mkdir -p logs experience && chown -R cyborg:cyborg /app
 
 # 复制配置文件
 COPY .env.example .env.example

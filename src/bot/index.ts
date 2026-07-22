@@ -92,6 +92,25 @@ export class CyborgBot extends EventEmitter {
       this.bot!.once('spawn', () => {
         this.reconnectAttempts = 0; // 连接成功，重置重连计数
         logger.info('Bot spawned in world');
+
+        // 自动检测并记录服务器元数据
+        const bot = this.bot!;
+        const gameModeMap: Record<string, string> = {
+          '0': '生存', '1': '创造', '2': '冒险', '3': '旁观',
+          'survival': '生存', 'creative': '创造', 'adventure': '冒险', 'spectator': '旁观',
+        };
+        const gameMode = String(bot.game.gameMode);
+        this.expMemory.recordServerInfo({
+          name: (bot as any).motd || '未知服务器',
+          version: bot.version,
+          mode: gameModeMap[gameMode] || gameMode,
+        });
+        logger.info(`Server: ${bot.version}, Mode: ${gameModeMap[gameMode] || gameMode}, Difficulty: ${bot.game.difficulty}`);
+
+        // 记录出生点
+        const pos = bot.entity.position;
+        this.expMemory.recordLandmark('出生点', `(${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)}) - ${bot.game.dimension}`);
+
         this.emit('ready');
         resolve();
       });
@@ -107,6 +126,9 @@ export class CyborgBot extends EventEmitter {
       if (username === bot.username) return;
       logger.info(`[Chat] ${username}: ${message}`);
       this.emit('chat', username, message);
+
+      // 记录聊天到经验记忆
+      this.expMemory.recordChatMessage(username, message);
 
       // 任何聊天都退出自主模式
       this.autonomous?.onChat();
@@ -188,6 +210,7 @@ export class CyborgBot extends EventEmitter {
   /** 安全发送聊天消息（拆分+限速） */
   safeChat(message: string): void {
     if (!this.bot) return;
+    this.health.recordChat();
     // 拆分长消息（按句子边界，200字符一组）
     const chunks = this.smartChunk(message, 200);
     for (let i = 0; i < chunks.length; i++) {
@@ -274,12 +297,14 @@ export class CyborgBot extends EventEmitter {
     const botAny = bot as any;
     if (!bot) return 'Bot 未连接';
 
+    this.health.recordActivity(); // 更新空闲时间
+
     try {
       switch (cmd.action) {
         case 'move': {
           const { direction } = cmd.params as { direction: string };
           bot.setControlState(direction as any, true);
-          setTimeout(() => bot.setControlState(direction as any, false), 500);
+          setTimeout(() => bot.setControlState(direction as any, false), 2000);
           return `已向 ${direction} 移动`;
         }
         case 'look': {
@@ -374,7 +399,7 @@ export class CyborgBot extends EventEmitter {
   /** 获取 Bot 状态 */
   getStatus(): BotStatus {
     const bot = this.bot;
-    if (!bot) return { online: false, reconnecting: this.reconnectAttempts > 0 };
+    if (!bot || !bot.entity) return { online: false, reconnecting: this.reconnectAttempts > 0 };
 
     return {
       online: true,
@@ -394,6 +419,7 @@ export class CyborgBot extends EventEmitter {
       players: Object.keys(bot.players).length,
       entities: Object.keys(bot.entities).length,
       messageCount: this.conversation?.messageCount ?? 0,
+      chatCount: this.health.getReport().stats.chatCount,
       proxyMode: this.proxyMode,
       reconnecting: false,
     };
@@ -411,7 +437,6 @@ export class CyborgBot extends EventEmitter {
       const viewer = require('prismarine-viewer');
       const { createCanvas } = require('canvas');
       const canvas = createCanvas(640, 480);
-      const ctx = canvas.getContext('2d');
 
       // 渲染当前视野
       const worldView = viewer.headless;
@@ -450,6 +475,7 @@ export interface BotStatus {
   players?: number;
   entities?: number;
   messageCount?: number;
+  chatCount?: number;
   proxyMode?: boolean;
   reconnecting?: boolean;
 }

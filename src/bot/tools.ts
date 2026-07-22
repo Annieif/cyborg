@@ -4,11 +4,17 @@ import { BotTool } from '../ai/types';
 /** 截图回调类型 */
 export type ScreenshotCallback = () => Promise<string | null>;
 
+/** 动作分发器：工具名 → 执行函数 */
+type ActionExecutor = (args: Record<string, unknown>) => Promise<string>;
+
 /**
  * 创建 Bot 可用工具集（供 AI Function Calling 使用）
  */
 export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): BotTool[] {
   const botAny = bot as any;
+
+  /** 内置动作分发器：用于 doActionChain 元工具复用所有工具逻辑 */
+  const actionDispatcher: Map<string, ActionExecutor> = new Map();
   const tools: BotTool[] = [
     // === 移动相关 ===
     {
@@ -499,6 +505,66 @@ export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): Bot
       },
     });
   }
+
+  // === 构建动作分发器：从已注册工具中提取执行函数 ===
+  for (const tool of tools) {
+    actionDispatcher.set(tool.name, tool.execute as ActionExecutor);
+  }
+
+  // === 动作链元工具：一次性执行多个动作 ===
+  tools.push({
+    name: 'doActionChain',
+    description: '一次性执行多个动作。用此工具规划多步骤任务，减少 AI 请求次数。'
+      + '支持的动作: ' + tools.map(t => t.name).join(', ')
+      + '。每个步骤可以独立执行，按顺序依次完成。适合：先移动再挖掘、先查看背包再合成、先进食再探险等场景。',
+    parameters: {
+      type: 'object',
+      properties: {
+        steps: {
+          type: 'array',
+          description: '要按顺序执行的动作列表',
+          items: {
+            type: 'object',
+            properties: {
+              action: {
+                type: 'string',
+                description: '动作名称，必须是支持的动作之一',
+                enum: tools.map(t => t.name),
+              },
+              params: {
+                type: 'object',
+                description: '该动作的参数（参考各工具的文档）',
+              },
+            },
+            required: ['action'],
+          },
+        },
+      },
+      required: ['steps'],
+    },
+    execute: async (args) => {
+      const { steps } = args as { steps: Array<{ action: string; params?: Record<string, unknown> }> };
+      if (!steps || steps.length === 0) return '动作链为空';
+
+      const results: string[] = [];
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        const executor = actionDispatcher.get(step.action);
+        if (!executor) {
+          results.push(`[${i + 1}] 未知动作: ${step.action}`);
+          continue;
+        }
+        try {
+          const result = await executor(step.params || {});
+          results.push(`[${i + 1}] ${step.action}: ${result}`);
+        } catch (err) {
+          results.push(`[${i + 1}] ${step.action} 失败: ${err}`);
+        }
+      }
+
+      return `动作链完成 (${steps.length} 步):\n${results.join('\n')}`;
+    },
+  });
 
   return tools;
 }

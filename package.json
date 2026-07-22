@@ -1,6 +1,6 @@
 {
   "name": "minecraft-ai-cyborg",
-  "version": "1.0.4",
+  "version": "1.2.0",
   "description": "我的世界AI赛博人 - Minecraft AI Cyborg powered by Mineflayer",
   "main": "dist/index.js",
   "scripts": {
@@ -37,8 +37,8 @@
     "zod": "^3.23.8"
   },
   "optionalDependencies": {
-    "prismarine-viewer": "^1.33.0",
-    "canvas": "^2.11.2"
+    "canvas": "^2.11.2",
+    "prismarine-viewer": "^1.33.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

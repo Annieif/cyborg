@@ -4,6 +4,7 @@ import { StatusPanel } from './components/StatusPanel';
 import { ChatArea } from './components/ChatArea';
 import { PlayerList } from './components/PlayerList';
 import { ProxyControl } from './components/ProxyControl';
+import { SetupWizard } from './components/SetupWizard';
 
 export interface BotStatus {
   online: boolean;
@@ -19,6 +20,7 @@ export interface BotStatus {
   players?: number;
   entities?: number;
   messageCount?: number;
+  chatCount?: number;
   proxyMode?: boolean;
   reconnecting?: boolean;
 }
@@ -39,7 +41,18 @@ function App() {
   const [proxyMode, setProxyMode] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [proxyResult, setProxyResult] = useState('');
+  const [showWizard, setShowWizard] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 检测是否首次运行（未配置）
+  useEffect(() => {
+    fetch('/api/config/check')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.configured) setShowWizard(true);
+      })
+      .catch(() => {}); // 后端未启动时忽略
+  }, []);
 
   useEffect(() => {
     const s = io();
@@ -135,7 +148,11 @@ function App() {
   }, [socket, proxyMode]);
 
   return (
-    <div className="app">
+    <>
+      {showWizard && (
+        <SetupWizard onComplete={() => setShowWizard(false)} />
+      )}
+      <div className="app">
       <StatusPanel status={status} connected={connected} reconnecting={reconnecting} />
       <ChatArea
         messages={messages}
@@ -153,6 +170,7 @@ function App() {
         />
       </div>
     </div>
+    </>
   );
 }
 

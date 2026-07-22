@@ -32,6 +32,8 @@ export class ConversationManager {
   private maxTokens: number;
   private expPrompt: string = '';
   private visionEnabled: boolean;
+  private isFree: boolean;
+  private maxToolLoops: number;
 
   constructor(persona?: string, expPrompt?: string) {
     const config = getConfig();
@@ -39,6 +41,8 @@ export class ConversationManager {
     this.maxMessages = config.ai.maxContextMessages;
     this.maxTokens = config.ai.maxTokens;
     this.visionEnabled = config.ai.vision;
+    this.isFree = config.ai.provider === 'free';
+    this.maxToolLoops = config.ai.maxToolLoops;
 
     this.expPrompt = expPrompt || '';
 
@@ -104,7 +108,7 @@ export class ConversationManager {
 
     // 处理工具调用循环
     let loopCount = 0;
-    const maxLoops = 5;
+    const maxLoops = this.maxToolLoops;
     let finalResponse = response;
 
     while (finalResponse.finishReason === 'tool_calls' && finalResponse.message.tool_calls && loopCount < maxLoops) {
@@ -153,16 +157,20 @@ export class ConversationManager {
     const systemMsg = this.messages[0];
     const nonSystem = this.messages.slice(1);
 
-    const totalTokens = this.estimateContextTokens();
     const logger = getLogger();
 
-    // 如果总 token 超过预算，尝试摘要压缩
-    if (totalTokens > this.maxTokens && nonSystem.length > 6) {
-      logger.debug('Context token budget exceeded, summarizing...', {
-        tokens: totalTokens,
-        budget: this.maxTokens,
-      });
-      this.summarizeOldMessages();
+    // 免费 API 不限制 token，跳过 token 预算裁剪
+    if (!this.isFree) {
+      const totalTokens = this.estimateContextTokens();
+
+      // 如果总 token 超过预算，尝试摘要压缩
+      if (totalTokens > this.maxTokens && nonSystem.length > 6) {
+        logger.debug('Context token budget exceeded, summarizing...', {
+          tokens: totalTokens,
+          budget: this.maxTokens,
+        });
+        this.summarizeOldMessages();
+      }
     }
 
     // 再按消息数裁剪

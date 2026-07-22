@@ -317,6 +317,25 @@ export class OllamaProvider extends OpenAIProvider {
   }
 }
 
+/** ChatAnywhere 免费 API 提供商（OpenAI 兼容，按请求次数限制） */
+export class ChatAnywhereProvider extends OpenAIProvider {
+  readonly name = 'free';
+  readonly models = [
+    'gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo',
+    'gpt-4-turbo', 'gpt-4', 'o3-mini',
+  ];
+
+  constructor() {
+    super();
+    const config = getConfig();
+    this.baseUrl = config.ai.baseUrl || 'https://api.chatanywhere.tech/v1';
+    // 免费 API 可能不需要 key，但需要非空值
+    if (!config.ai.apiKey) {
+      this.apiKey = 'free';
+    }
+  }
+}
+
 /** 创建 AI 提供商实例 */
 export function createAIProvider(): AIProvider {
   const config = getConfig();
@@ -329,6 +348,8 @@ export function createAIProvider(): AIProvider {
       return new CustomProvider();
     case 'ollama':
       return new OllamaProvider();
+    case 'free':
+      return new ChatAnywhereProvider();
     default:
       throw new Error(`Unknown AI provider: ${config.ai.provider}`);
   }

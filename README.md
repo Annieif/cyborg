@@ -129,71 +129,21 @@
 
 ## 快速开始
 
-### 前置要求
-
-- **Node.js** 18+  [下载](https://nodejs.org/)
-- **Minecraft Java Edition** 服务器 1.8 - 1.21
-- **AI API Key**（OpenAI / Claude / 兼容格式）
-
-### 1. 克隆并安装
+> **零基础用户**：只需安装 Docker Desktop，然后复制粘贴以下命令：
 
 ```bash
-git clone https://github.com/Annieif/cyborg.git minecraft-ai-cyborg
-cd minecraft-ai-cyborg
-
-# 安装后端依赖
-npm install --legacy-peer-deps
-
-# 安装并构建前端
-cd frontend
-npm install
-npm run build
-cd ..
+git clone https://github.com/Annieif/cyborg.git
+cd cyborg
+docker-compose up
 ```
 
-### 2. 配置环境
+然后打开浏览器访问 `http://localhost:3000`，按照引导配置即可。
 
-```bash
-cp .env.example .env
-```
+**没有 Docker？** 从 [Releases](https://github.com/Annieif/cyborg/releases) 下载可执行文件双击运行。
 
-编辑 `.env`，填入必填配置：
+**有 Node.js 18+？** `npm install && npm run build && npm start`
 
-```env
-# === 必填 ===
-MC_HOST=localhost                 # 服务器地址
-MC_USERNAME=AI_Cyborg             # Bot 游戏名（3-16位英文，仅 a-z A-Z 0-9 _）
-AI_API_KEY=sk-your-api-key-here   # AI API 密钥
-
-# === 可选（有默认值） ===
-MC_PORT=25565
-MC_VERSION=1.20.1
-AI_PROVIDER=openai                # openai / claude / custom
-AI_MODEL=gpt-4o-mini
-AI_BASE_URL=https://api.openai.com/v1
-```
-
-### 3. 启动
-
-**Windows 一键启动:**
-```bash
-start.bat
-```
-
-**Docker 一键部署:**
-```bash
-docker-compose up -d
-```
-
-**手动启动:**
-```bash
-npm run build
-npm start
-```
-
-### 4. 打开控制面板
-
-浏览器访问 **http://localhost:3000**
+**详细指南**：见 [QUICKSTART.md](./QUICKSTART.md)
 
 ---
 

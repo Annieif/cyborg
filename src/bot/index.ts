@@ -171,7 +171,7 @@ export class CyborgBot extends EventEmitter {
     });
 
     bot.on('error', (err) => {
-      logger.error('Bot error:', err);
+      logger.error('Bot error:', err.message);
       this.health.recordError(err);
       this.emit('error', err);
     });
@@ -454,7 +454,12 @@ export class CyborgBot extends EventEmitter {
     this.isShuttingDown = true;
     this.autonomous?.stop();
     if (this.bot) {
-      this.bot.quit('Shutting down');
+      try {
+        this.bot.removeAllListeners();
+        this.bot.quit('Shutting down');
+      } catch {
+        // 忽略退出时的错误
+      }
       this.bot = null;
     }
     getLogger().info('Bot shut down');

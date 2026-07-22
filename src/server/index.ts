@@ -136,22 +136,38 @@ export class WebServer {
     this.app.post('/api/config/save', async (req, res) => {
       try {
         const { aiProvider, aiApiKey, aiModel, aiBaseUrl, mcHost, mcPort, mcUsername, mcVersion } = req.body;
-        
+
+        // 输入校验：防止 .env 注入
+        const sanitize = (val: unknown, fallback: string): string => {
+          if (typeof val !== 'string') return fallback;
+          // 移除换行符和回车符，防止注入额外的配置行
+          return val.replace(/[\r\n]/g, '').trim() || fallback;
+        };
+        const allowedProviders = ['openai', 'claude', 'custom', 'ollama', 'free'];
+        const safeProvider = allowedProviders.includes(aiProvider) ? aiProvider : 'openai';
+        const safeApiKey = sanitize(aiApiKey, '');
+        const safeModel = sanitize(aiModel, 'gpt-4o-mini');
+        const safeBaseUrl = sanitize(aiBaseUrl, 'https://api.openai.com/v1');
+        const safeHost = sanitize(mcHost, 'localhost');
+        const safePort = (typeof mcPort === 'number' && mcPort > 0 && mcPort < 65536) ? mcPort : 25565;
+        const safeUsername = sanitize(mcUsername, 'AI_Cyborg').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 16);
+        const safeVersion = sanitize(mcVersion, '1.20.1');
+
         const envContent = [
-          `# AI Cyborg v1.2.0 配置`,
+          `# AI Cyborg v1.2.1 配置`,
           `# 由 Web 配置向导自动生成`,
           ``,
           `# AI 后端`,
-          `AI_PROVIDER=${aiProvider || 'openai'}`,
-          `AI_API_KEY=${aiApiKey || ''}`,
-          `AI_MODEL=${aiModel || 'gpt-4o-mini'}`,
-          `AI_BASE_URL=${aiBaseUrl || 'https://api.openai.com/v1'}`,
+          `AI_PROVIDER=${safeProvider}`,
+          `AI_API_KEY=${safeApiKey}`,
+          `AI_MODEL=${safeModel}`,
+          `AI_BASE_URL=${safeBaseUrl}`,
           ``,
           `# Minecraft 服务器`,
-          `MC_HOST=${mcHost || 'localhost'}`,
-          `MC_PORT=${mcPort || 25565}`,
-          `MC_USERNAME=${mcUsername || 'AI_Cyborg'}`,
-          `MC_VERSION=${mcVersion || '1.20.1'}`,
+          `MC_HOST=${safeHost}`,
+          `MC_PORT=${safePort}`,
+          `MC_USERNAME=${safeUsername}`,
+          `MC_VERSION=${safeVersion}`,
           `MC_AUTH=offline`,
           ``,
           `# 其他设置（使用默认值）`,

@@ -42,6 +42,7 @@ function App() {
   const [reconnecting, setReconnecting] = useState(false);
   const [proxyResult, setProxyResult] = useState('');
   const [showWizard, setShowWizard] = useState(false);
+  const [wsError, setWsError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 检测是否首次运行（未配置）
@@ -58,8 +59,9 @@ function App() {
     const s = io();
     setSocket(s);
 
-    s.on('connect', () => setConnected(true));
+    s.on('connect', () => { setConnected(true); setWsError(false); });
     s.on('disconnect', () => setConnected(false));
+    s.on('connect_error', () => setWsError(true));
 
     s.on('status', (data: BotStatus) => {
       setStatus(data);
@@ -153,7 +155,7 @@ function App() {
         <SetupWizard onComplete={() => setShowWizard(false)} />
       )}
       <div className="app">
-      <StatusPanel status={status} connected={connected} reconnecting={reconnecting} />
+      <StatusPanel status={status} connected={connected} reconnecting={reconnecting} wsError={wsError} />
       <ChatArea
         messages={messages}
         onSend={handleSend}

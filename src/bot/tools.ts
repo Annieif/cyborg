@@ -32,11 +32,18 @@ export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): Bot
       execute: async (args) => {
         const { x, y, z } = args as { x: number; y: number; z: number };
         return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            botAny.removeListener('goal_reached', onReached);
+            resolve('移动超时');
+          }, 30000);
+          const onReached = () => {
+            clearTimeout(timeout);
+            resolve('已到达目标位置');
+          };
           botAny.pathfinder.setGoal(
             new (require('mineflayer-pathfinder').goals.GoalNear)(x, y, z, 1)
           );
-          (bot as any).once('goal_reached', () => resolve('已到达目标位置'));
-          setTimeout(() => resolve('移动超时'), 30000);
+          botAny.once('goal_reached', onReached);
         });
       },
     },
@@ -181,7 +188,6 @@ export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): Bot
         );
         if (entities.length === 0) return '附近没有掉落物';
         const nearest = entities[0];
-        if (!nearest) return '附近没有掉落物';
         try {
           await botAny.collectBlock.collect(nearest);
           return `已收集 ${entities.length} 个掉落物中最近的`;
@@ -203,11 +209,13 @@ export function createBotTools(bot: Bot, onScreenshot?: ScreenshotCallback): Bot
       },
       execute: async (args) => {
         const { radius = 50 } = args as { radius: number };
+        const botPos = bot.entity?.position;
+        if (!botPos) return '位置信息不可用';
         const players = Object.values(bot.players)
           .filter((p) => p.entity && p.username !== bot.username)
           .map((p) => {
             const dist = p.entity
-              ? p.entity.position.distanceTo(bot.entity.position).toFixed(1)
+              ? p.entity.position.distanceTo(botPos).toFixed(1)
               : '?';
             return `${p.username} (距离: ${dist}m)`;
           });

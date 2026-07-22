@@ -4,9 +4,10 @@ interface StatusPanelProps {
   status: BotStatus;
   connected: boolean;
   reconnecting?: boolean;
+  wsError?: boolean;
 }
 
-export function StatusPanel({ status, connected, reconnecting }: StatusPanelProps) {
+export function StatusPanel({ status, connected, reconnecting, wsError }: StatusPanelProps) {
   const healthPercent = status.health
     ? Math.round((status.health / 20) * 100)
     : 0;
@@ -48,8 +49,13 @@ export function StatusPanel({ status, connected, reconnecting }: StatusPanelProp
           </div>
         )}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-          仪表盘: {connected ? '已连接' : '未连接'}
+          仪表盘: {wsError ? '连接失败' : connected ? '已连接' : '未连接'}
         </div>
+        {reconnecting && (
+          <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 2 }}>
+            正在重连...
+          </div>
+        )}
         {status.proxyMode && (
           <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 2 }}>
             代理模式开启

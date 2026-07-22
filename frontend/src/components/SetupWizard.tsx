@@ -47,6 +47,7 @@ export function SetupWizard({ onComplete }: { onComplete: (config: SetupConfig) 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
 
   const updateConfig = (partial: Partial<SetupConfig>) => {
     setConfig(prev => ({ ...prev, ...partial }));
@@ -65,6 +66,14 @@ export function SetupWizard({ onComplete }: { onComplete: (config: SetupConfig) 
   };
 
   const handleSave = async () => {
+    // 校验用户名
+    const usernameRegex = /^[a-zA-Z0-9_]{3,16}$/;
+    if (!usernameRegex.test(config.mcUsername)) {
+      setUsernameError('用户名需 3-16 位，仅支持英文、数字、下划线');
+      setStep(3); // 跳回角色设置步骤
+      return;
+    }
+    setUsernameError('');
     setSaving(true);
     setError('');
     try {
@@ -242,9 +251,14 @@ export function SetupWizard({ onComplete }: { onComplete: (config: SetupConfig) 
               <input
                 type="text"
                 value={config.mcUsername}
-                onChange={e => updateConfig({ mcUsername: e.target.value })}
+                onChange={e => { updateConfig({ mcUsername: e.target.value }); setUsernameError(''); }}
                 placeholder="AI_Cyborg"
+                maxLength={16}
               />
+              {usernameError && <span className="wizard-error">{usernameError}</span>}
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                3-16 位，仅支持英文、数字、下划线
+              </span>
             </div>
           </div>
         );

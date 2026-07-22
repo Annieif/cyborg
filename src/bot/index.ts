@@ -171,6 +171,12 @@ export class CyborgBot extends EventEmitter {
     });
 
     bot.on('error', (err) => {
+      // PartialReadError 是 minecraft-protocol 的已知问题（Bun compile 打包时协议数据文件丢失）
+      // 不影响 Bot 核心功能，仅记录警告
+      if (err.name === 'PartialReadError2' || err.message?.includes('PartialReadError')) {
+        logger.warn('Packet parse error (non-fatal):', err.message);
+        return;
+      }
       logger.error('Bot error:', err.message);
       this.health.recordError(err);
       this.emit('error', err);

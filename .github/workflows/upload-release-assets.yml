@@ -43,7 +43,7 @@ jobs:
 
       - name: Compile binary
         shell: bash
-        run: bun build ./dist/index.js --compile --external prismarine-viewer --external canvas --outfile ${{ matrix.artifact }}
+        run: bun build ./dist/index.js --compile --external prismarine-viewer --external canvas --external minecraft-protocol --outfile ${{ matrix.artifact }}
 
       - name: Upload to release
         env:

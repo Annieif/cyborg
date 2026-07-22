@@ -324,6 +324,7 @@ npm start
 | `AI_AUTONOMOUS` | boolean | `false` | 启用类人机自主模式（空闲时自动活动） |
 | `AI_AUTONOMOUS_IDLE_TIMEOUT` | number | `60` | 空闲超时（秒），超时后激活自主模式 |
 | `AI_AUTONOMOUS_INTERVAL` | number | `30` | 自主活动切换间隔（秒） |
+| `AI_AUTONOMOUS_AI_DRIVEN` | boolean | `false` | AI 驱动自主模式（AI 自己做决定，耗 token） |
 
 ### 配置参数深度解析
 
@@ -944,6 +945,22 @@ AI_AUTONOMOUS_INTERVAL=30
 "有人需要帮忙吗？我可以帮忙挖矿或者收集材料。"
 "你好！能给我一点食物吗？我快饿死了。"
 ```
+
+#### AI 驱动模式（真正自主）
+
+开启 `AI_AUTONOMOUS_AI_DRIVEN=true` 后，Bot 不再使用随机活动，而是由 AI 自主决策：
+
+```
+AI_AUTONOMOUS=true
+AI_AUTONOMOUS_AI_DRIVEN=true
+```
+
+**工作流程:**
+1. 空闲超时 → 收集环境上下文（位置/生命/附近玩家/矿石/手持物品）
+2. 发送上下文给 AI → AI 调用工具自主行动
+3. AI 聊天输出决定 → 等待间隔 → 下一轮
+
+**注意:** 每轮消耗一次 AI API 调用，大量消耗 token。建议配合 `AI_MODEL=gpt-4o-mini` 使用。
 
 ---
 
@@ -2062,6 +2079,16 @@ curl -X POST http://localhost:3000/api/exp/record -H "Content-Type: application/
 ---
 
 ## 更新日志
+
+### v1.0.4 (2026-07-21)
+
+**AI 驱动自主模式 — 真正由 AI 自己做决定**
+
+- 新增 `AI_AUTONOMOUS_AI_DRIVEN` 配置项：开启后 AI 自主决定做什么（而非随机活动）
+- AI 驱动模式流程：空闲 → 发送环境上下文给 AI → AI 调用 20 个工具自主行动 → 聊天输出决定 → 循环
+- 动态上下文：位置、生命、饥饿、附近玩家、手持物品、矿石资源等信息实时注入 AI 提示
+- 与硬编码模式共存：`AI_AUTONOMOUS_AI_DRIVEN=false` 使用原有随机活动，`true` 使用 AI 决策
+- 注意：每轮消耗一次 AI API 调用（约 30 秒间隔），大量消耗 token
 
 ### v1.0.3 (2026-07-21)
 

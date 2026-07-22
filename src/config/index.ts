@@ -27,6 +27,7 @@ const configSchema = z.object({
     autonomous: z.coerce.boolean().default(false),
     autonomousIdleTimeout: z.coerce.number().int().positive().default(60),
     autonomousInterval: z.coerce.number().int().positive().default(30),
+    autonomousAiDriven: z.coerce.boolean().default(false),
   }),
   web: z.object({
     port: z.coerce.number().int().positive().default(3000),
@@ -67,6 +68,7 @@ export function loadConfig(): Config {
       autonomous: process.env.AI_AUTONOMOUS,
       autonomousIdleTimeout: process.env.AI_AUTONOMOUS_IDLE_TIMEOUT,
       autonomousInterval: process.env.AI_AUTONOMOUS_INTERVAL,
+      autonomousAiDriven: process.env.AI_AUTONOMOUS_AI_DRIVEN,
     },
     web: {
       port: process.env.WEB_PORT,

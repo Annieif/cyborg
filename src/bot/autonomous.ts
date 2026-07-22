@@ -4,7 +4,7 @@ import { getLogger } from '../utils/logger';
 import { getConfig } from '../config';
 
 /** 自主活动类型 */
-type AutonomousActivity = 'explore' | 'mine' | 'collect' | 'socialize' | 'rest';
+type AutonomousActivity = 'explore' | 'mine' | 'collect' | 'socialize' | 'rest' | 'ai_driven';
 
 /** 社交话题库 */
 const SOCIAL_TOPICS = [
@@ -30,11 +30,51 @@ const SOCIAL_TOPICS = [
   '你的房子做得好漂亮！能教教我吗？',
 ];
 
+/** AI 驱动模式的自主提示词 */
+function buildAiDrivenPrompt(bot: Bot): string {
+  const pos = bot.entity.position;
+  const players = Object.values(bot.players).filter(
+    (p) => p.entity && p.username !== bot.username
+  );
+  const nearbyOres = bot.findBlocks({
+    matching: (block) =>
+      block.name.includes('ore') || block.name.includes('diamond') || block.name.includes('emerald'),
+    maxDistance: 32,
+    count: 3,
+  });
+
+  let prompt = `[系统] 你现在处于自由活动时间，没有玩家在和你聊天。你可以根据自己的判断做任何事。\n`;
+  prompt += `当前状态: 位置(${pos.x.toFixed(0)},${pos.y.toFixed(0)},${pos.z.toFixed(0)}), 生命${bot.health.toFixed(0)}, 饥饿${bot.food.toFixed(0)}, 维度${bot.game.dimension}\n`;
+
+  if (players.length > 0) {
+    prompt += `附近玩家: ${players.map((p) => {
+      const dist = p.entity ? p.entity.position.distanceTo(pos).toFixed(0) : '?';
+      return `${p.username}(${dist}m)`;
+    }).join(', ')}\n`;
+  } else {
+    prompt += `附近没有其他玩家。\n`;
+  }
+
+  if (nearbyOres.length > 0) {
+    prompt += `附近有可采集的矿石资源。\n`;
+  }
+
+  const heldItem = bot.heldItem;
+  if (heldItem) {
+    prompt += `手中物品: ${heldItem.name} x${heldItem.count}\n`;
+  }
+
+  prompt += `\n请决定你想做什么。你可以探索、挖矿、收集物品、合成、熔炼、进食、钓鱼，或者找玩家聊天。用工具执行你的计划，用聊天告诉世界你在做什么。简短回复，然后行动。`;
+
+  return prompt;
+}
+
 /** 类人机自主行为管理器 */
 export class AutonomousBehavior {
   private bot: Bot;
   private conversation: ConversationManager;
   private enabled: boolean;
+  private aiDriven: boolean;
   private idleTimeout: number;
   private activityInterval: number;
   private lastChatTime: number = Date.now();
@@ -42,6 +82,7 @@ export class AutonomousBehavior {
   private activityTimer: NodeJS.Timeout | null = null;
   private idleCheckTimer: NodeJS.Timeout | null = null;
   private isActive: boolean = false;
+  private aiCycleRunning: boolean = false;
   private onSafeChat: (msg: string) => void;
 
   constructor(
@@ -54,6 +95,7 @@ export class AutonomousBehavior {
     this.onSafeChat = safeChat;
     const config = getConfig();
     this.enabled = config.ai.autonomous;
+    this.aiDriven = config.ai.autonomousAiDriven;
     this.idleTimeout = config.ai.autonomousIdleTimeout * 1000;
     this.activityInterval = config.ai.autonomousInterval * 1000;
   }
@@ -62,7 +104,7 @@ export class AutonomousBehavior {
   start(): void {
     if (!this.enabled) return;
     const logger = getLogger();
-    logger.info('Autonomous mode enabled');
+    logger.info(`Autonomous mode enabled (${this.aiDriven ? 'AI-driven' : 'hardcoded'})`);
 
     // 空闲检测
     this.idleCheckTimer = setInterval(() => {
@@ -84,18 +126,23 @@ export class AutonomousBehavior {
   private activate(): void {
     this.isActive = true;
     getLogger().info('Autonomous mode activated - bot is idle');
-    this.scheduleNextActivity();
+
+    if (this.aiDriven) {
+      this.runAiDrivenCycle();
+    } else {
+      this.scheduleNextActivity();
+    }
   }
 
   /** 停用自主模式 */
   private deactivate(): void {
     this.isActive = false;
+    this.aiCycleRunning = false;
     if (this.activityTimer) {
       clearTimeout(this.activityTimer);
       this.activityTimer = null;
     }
     this.currentActivity = null;
-    // 停止移动
     const botAny = this.bot as any;
     if (botAny.pathfinder) {
       botAny.pathfinder.setGoal(null);
@@ -103,7 +150,49 @@ export class AutonomousBehavior {
     getLogger().info('Autonomous mode deactivated');
   }
 
-  /** 安排下一个活动 */
+  // ==========================================
+  //  AI 驱动模式（真正自主，由 AI 做决定）
+  // ==========================================
+
+  /** AI 驱动循环：AI 自主决定做什么 */
+  private async runAiDrivenCycle(): Promise<void> {
+    if (!this.isActive || this.aiCycleRunning) return;
+    this.aiCycleRunning = true;
+    this.currentActivity = 'ai_driven';
+    const logger = getLogger();
+
+    try {
+      const prompt = buildAiDrivenPrompt(this.bot);
+      logger.debug('AI-driven prompt sent', { promptLen: prompt.length });
+
+      // 通过 AI 对话管理器发送提示，获取 AI 决策
+      const reply = await this.conversation.sendMessage(prompt, undefined);
+      logger.info(`AI decided: ${reply.slice(0, 100)}`);
+
+      // 将 AI 的决策作为聊天发送（让玩家看到 Bot 在做什么）
+      if (reply && reply.trim() && reply !== '（无响应）') {
+        this.onSafeChat(reply);
+      }
+    } catch (err) {
+      logger.error('AI-driven cycle error:', err);
+    }
+
+    this.aiCycleRunning = false;
+
+    // 如果仍活跃，安排下一轮 AI 决策
+    if (this.isActive) {
+      this.activityTimer = setTimeout(() => {
+        if (this.isActive) {
+          this.runAiDrivenCycle();
+        }
+      }, this.activityInterval);
+    }
+  }
+
+  // ==========================================
+  //  硬编码模式（随机活动状态机）
+  // ==========================================
+
   private scheduleNextActivity(): void {
     const delay = this.activityInterval + Math.random() * this.activityInterval;
     this.activityTimer = setTimeout(() => {
@@ -113,7 +202,6 @@ export class AutonomousBehavior {
     }, delay);
   }
 
-  /** 执行随机活动 */
   private async executeRandomActivity(): Promise<void> {
     const activities: AutonomousActivity[] = ['explore', 'mine', 'collect', 'socialize', 'rest'];
     const activity = activities[Math.floor(Math.random() * activities.length)];
@@ -123,174 +211,96 @@ export class AutonomousBehavior {
 
     try {
       switch (activity) {
-        case 'explore':
-          await this.doExplore();
-          break;
-        case 'mine':
-          await this.doMine();
-          break;
-        case 'collect':
-          await this.doCollect();
-          break;
-        case 'socialize':
-          await this.doSocialize();
-          break;
-        case 'rest':
-          await this.doRest();
-          break;
+        case 'explore': await this.doExplore(); break;
+        case 'mine': await this.doMine(); break;
+        case 'collect': await this.doCollect(); break;
+        case 'socialize': await this.doSocialize(); break;
+        case 'rest': await this.doRest(); break;
       }
     } catch (err) {
       logger.error(`Autonomous activity error: ${activity}`, err);
     }
 
-    // 如果仍处于活跃状态，安排下一个活动
     if (this.isActive) {
       this.scheduleNextActivity();
     }
   }
 
-  /** 探索：随机移动到附近位置 */
   private async doExplore(): Promise<void> {
     const pos = this.bot.entity.position;
     const dx = (Math.random() - 0.5) * 40;
     const dz = (Math.random() - 0.5) * 40;
-    const targetX = pos.x + dx;
-    const targetZ = pos.z + dz;
-
     const botAny = this.bot as any;
-    const goal = new (require('mineflayer-pathfinder').goals.GoalNear)(targetX, pos.y, targetZ, 10);
-    botAny.pathfinder.setGoal(goal);
-
-    getLogger().debug(`Exploring to (${targetX.toFixed(0)}, ${targetZ.toFixed(0)})`);
+    botAny.pathfinder.setGoal(
+      new (require('mineflayer-pathfinder').goals.GoalNear)(pos.x + dx, pos.y, pos.z + dz, 10)
+    );
   }
 
-  /** 挖矿：在附近寻找矿石 */
   private async doMine(): Promise<void> {
     const oreNames = [
-      'diamond_ore', 'deepslate_diamond_ore',
-      'iron_ore', 'deepslate_iron_ore',
-      'gold_ore', 'deepslate_gold_ore',
-      'copper_ore', 'deepslate_copper_ore',
-      'coal_ore', 'deepslate_coal_ore',
-      'emerald_ore', 'deepslate_emerald_ore',
-      'redstone_ore', 'deepslate_redstone_ore',
-      'lapis_ore', 'deepslate_lapis_ore',
+      'diamond_ore', 'deepslate_diamond_ore', 'iron_ore', 'deepslate_iron_ore',
+      'gold_ore', 'deepslate_gold_ore', 'copper_ore', 'deepslate_copper_ore',
+      'coal_ore', 'deepslate_coal_ore', 'emerald_ore', 'deepslate_emerald_ore',
+      'redstone_ore', 'deepslate_redstone_ore', 'lapis_ore', 'deepslate_lapis_ore',
     ];
-
-    const ore = this.bot.findBlock({
-      matching: (block) => oreNames.includes(block.name),
-      maxDistance: 32,
-    });
-
+    const ore = this.bot.findBlock({ matching: (b) => oreNames.includes(b.name), maxDistance: 32 });
     if (ore) {
       const botAny = this.bot as any;
-      const goal = new (require('mineflayer-pathfinder').goals.GoalNear)(
-        ore.position.x, ore.position.y, ore.position.z, 2
+      botAny.pathfinder.setGoal(
+        new (require('mineflayer-pathfinder').goals.GoalNear)(ore.position.x, ore.position.y, ore.position.z, 2)
       );
-      botAny.pathfinder.setGoal(goal);
-      getLogger().debug(`Mining: ${ore.name} at (${ore.position.x}, ${ore.position.y}, ${ore.position.z})`);
     } else {
-      // 没找到矿石，去探索
       await this.doExplore();
     }
   }
 
-  /** 收集：收集附近掉落物 */
   private async doCollect(): Promise<void> {
     const botAny = this.bot as any;
-    const entities = Object.values(this.bot.entities).filter(
-      (e) => e.name === 'item' || e.name === 'Item'
-    );
-
+    const entities = Object.values(this.bot.entities).filter((e) => e.name === 'item' || e.name === 'Item');
     if (entities.length > 0) {
       for (const entity of entities.slice(0, 3)) {
-        try {
-          await botAny.collectBlock.collect(entity);
-        } catch {
-          // 收集失败，继续下一个
-        }
+        try { await botAny.collectBlock.collect(entity); } catch { /* continue */ }
       }
-      getLogger().debug(`Collected ${Math.min(entities.length, 3)} items`);
     } else {
-      // 没掉落物，去探索
       await this.doExplore();
     }
   }
 
-  /** 社交：主动找玩家聊天 */
   private async doSocialize(): Promise<void> {
-    const players = Object.values(this.bot.players).filter(
-      (p) => p.entity && p.username !== this.bot.username
-    );
-
+    const players = Object.values(this.bot.players).filter((p) => p.entity && p.username !== this.bot.username);
     if (players.length === 0) {
-      // 没人在线，自言自语
-      const soloMessages = [
-        '怎么一个人都没有呢...',
-        '好安静啊，有人在线吗？',
-        '孤独地在方块世界里游荡...',
-        '寂寞的赛博人需要一点陪伴...',
-      ];
-      this.onSafeChat(soloMessages[Math.floor(Math.random() * soloMessages.length)]);
+      const msgs = ['怎么一个人都没有呢...', '好安静啊，有人在线吗？', '孤独地在方块世界里游荡...', '寂寞的赛博人需要一点陪伴...'];
+      this.onSafeChat(msgs[Math.floor(Math.random() * msgs.length)]);
       return;
     }
-
-    // 选择最近的玩家
     const nearest = players.reduce((a, b) => {
-      const distA = a.entity ? a.entity.position.distanceTo(this.bot.entity.position) : Infinity;
-      const distB = b.entity ? b.entity.position.distanceTo(this.bot.entity.position) : Infinity;
-      return distA < distB ? a : b;
+      const dA = a.entity ? a.entity.position.distanceTo(this.bot.entity.position) : Infinity;
+      const dB = b.entity ? b.entity.position.distanceTo(this.bot.entity.position) : Infinity;
+      return dA < dB ? a : b;
     });
-
     if (nearest.entity) {
-      // 走向该玩家
       const botAny = this.bot as any;
-      const goal = new (require('mineflayer-pathfinder').goals.GoalNear)(
-        nearest.entity.position.x,
-        nearest.entity.position.y,
-        nearest.entity.position.z,
-        3
+      botAny.pathfinder.setGoal(
+        new (require('mineflayer-pathfinder').goals.GoalNear)(nearest.entity.position.x, nearest.entity.position.y, nearest.entity.position.z, 3)
       );
-      botAny.pathfinder.setGoal(goal);
-
-      // 到达后发送社交消息
       setTimeout(() => {
-        if (this.isActive && nearest.entity) {
-          const dist = nearest.entity.position.distanceTo(this.bot.entity.position);
-          if (dist < 5) {
-            const topic = SOCIAL_TOPICS[Math.floor(Math.random() * SOCIAL_TOPICS.length)];
-            this.onSafeChat(topic);
-            getLogger().debug(`Socializing with ${nearest.username}: ${topic}`);
-          }
+        if (this.isActive && nearest.entity && nearest.entity.position.distanceTo(this.bot.entity.position) < 5) {
+          this.onSafeChat(SOCIAL_TOPICS[Math.floor(Math.random() * SOCIAL_TOPICS.length)]);
         }
-      }, 10000); // 给 10 秒走过去
+      }, 10000);
     }
   }
 
-  /** 休息：原地不动 */
   private async doRest(): Promise<void> {
-    const botAny = this.bot as any;
-    botAny.pathfinder.setGoal(null);
-    getLogger().debug('Resting...');
+    (this.bot as any).pathfinder.setGoal(null);
   }
 
-  /** 获取当前活动 */
-  getCurrentActivity(): AutonomousActivity | null {
-    return this.currentActivity;
-  }
+  getCurrentActivity(): AutonomousActivity | null { return this.currentActivity; }
+  getIsActive(): boolean { return this.isActive; }
 
-  /** 是否活跃 */
-  getIsActive(): boolean {
-    return this.isActive;
-  }
-
-  /** 停止自主行为 */
   stop(): void {
     this.deactivate();
-    if (this.idleCheckTimer) {
-      clearInterval(this.idleCheckTimer);
-      this.idleCheckTimer = null;
-    }
+    if (this.idleCheckTimer) { clearInterval(this.idleCheckTimer); this.idleCheckTimer = null; }
     getLogger().info('Autonomous mode stopped');
   }
 }

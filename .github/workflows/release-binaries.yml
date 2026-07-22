@@ -44,7 +44,7 @@ jobs:
 
       - name: Compile binary
         shell: bash
-        run: bun build ./dist/index.js --compile --outfile ${{ matrix.artifact }}
+        run: bun build ./dist/index.js --compile --external prismarine-viewer --external canvas --outfile ${{ matrix.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -20,7 +20,7 @@ npx tsc
 
 # 4. 编译为可执行文件
 Write-Host "[4/4] 编译为可执行文件..."
-bun build ./dist/index.js --compile --outfile cyborg-bot.exe
+bun build ./dist/index.js --compile --external prismarine-viewer --external canvas --outfile cyborg-bot.exe
 Write-Host "✓ 完成: ./cyborg-bot.exe"
 $size = (Get-Item cyborg-bot.exe).Length / 1MB
 Write-Host "  文件大小: $([math]::Round($size, 1)) MB"

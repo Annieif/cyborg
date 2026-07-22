@@ -21,7 +21,7 @@ npx tsc
 # 4. 编译为可执行文件
 echo "[4/4] 编译为可执行文件..."
 if command -v bun &> /dev/null; then
-  bun build ./dist/index.js --compile --outfile cyborg-bot
+  bun build ./dist/index.js --compile --external prismarine-viewer --external canvas --outfile cyborg-bot
   echo "✓ 完成: ./cyborg-bot"
   
   SIZE=$(du -h cyborg-bot | cut -f1)

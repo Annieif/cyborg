@@ -7,6 +7,11 @@ on:
     # 每月 1 号 UTC 00:00 自动构建
     - cron: '0 0 1 * *'
   workflow_dispatch:
+    inputs:
+      upload_to_release:
+        description: 'Upload to release (leave empty to create nightly)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -60,15 +65,20 @@ jobs:
           path: ${{ matrix.artifact }}
 
       - name: Attach to release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_release != '')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.event.release.tag_name }} ${{ matrix.artifact }} --clobber
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            gh release upload ${{ github.event.release.tag_name }} ${{ matrix.artifact }} --clobber
+          else
+            gh release upload ${{ github.event.inputs.upload_to_release }} ${{ matrix.artifact }} --clobber
+          fi
 
   # 每月自动构建：将三个平台的可执行文件打包发布到 "nightly" Release
   publish-nightly:
     needs: build
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_release == '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

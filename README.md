@@ -92,7 +92,7 @@
 
 ### 智能交互
 - **AI 自然语言对话**: 玩家在游戏中 @Bot 或直接说话，Bot 通过 AI API 理解并回复
-- **Function Calling**: AI 可自主调用 12 个工具与世界交互（移动、挖掘、放置、战斗等）
+- **Function Calling**: AI 可自主调用 20 个工具与世界交互（移动、挖掘、放置、战斗、合成、熔炼、钓鱼等）
 - **角色设定**: 通过 System Prompt 自定义 Bot 的性格、语气、行为模式
 - **上下文管理**: 滑动窗口 + 可配置轮数，AI 记住最近对话
 
@@ -478,10 +478,12 @@ AI_BASE_URL=https://api.anthropic.com/v1
 │  └──────┬───────┘  └───────┬────────┘  └──────────┬───────────┘ │
 │         │                  │                       │              │
 │  ┌──────┴──────────────────┴───────────────────────┴──────────┐ │
-│  │                     工具层 (12 个工具)                       │ │
+│  │                     工具层 (20 个工具)                       │ │
 │  │  moveTo | sendChat | whisper | digBlock | placeBlock        │ │
 │  │  getInventory | equipItem | collectNearbyItems              │ │
 │  │  getNearbyPlayers | getPosition | getTime | attackHostile   │ │
+│  │  eatFood | sleep | fish | openChest | craftItem             │ │
+│  │  smeltItem | enchantItem | screenshot                       │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐ │
 │  │ RateLimiter  │  │HealthMonitor │  │  ExperienceMemory      │ │
@@ -1020,7 +1022,7 @@ curl -X POST http://localhost:3000/api/proxy/enable
 
 ## AI 工具参考
 
-AI 可通过 Function Calling 自主调用以下 12 个工具。工具描述会自动发送给 AI，AI 根据用户意图决定调用哪个工具。
+AI 可通过 Function Calling 自主调用以下 20 个工具。工具描述会自动发送给 AI，AI 根据用户意图决定调用哪个工具。
 
 ### 移动
 
@@ -1520,7 +1522,7 @@ Bot 的 CPU 消耗主要来自：
 │   │   └── index.ts              # 统一导出
 │   ├── bot/                      # Bot 核心
 │   │   ├── index.ts              # CyborgBot 主类 (Mineflayer 连接 + 事件处理 + 重连 + 代理)
-│   │   ├── tools.ts              # 12 个 AI Function Calling 工具定义
+│   │   ├── tools.ts              # 20 个 AI Function Calling 工具定义
 │   │   └── commands.ts           # 8 个玩家命令系统 (!help, !status, !come, ...)
 │   ├── server/                   # Web 服务层
 │   │   └── index.ts              # Express + Socket.io 服务器 + REST API + WebSocket 路由
@@ -2044,7 +2046,7 @@ curl -X POST http://localhost:3000/api/exp/record -H "Content-Type: application/
 **初始版本**
 
 - Mineflayer Bot 核心（连接、事件、插件）
-- 12 个 AI Function Calling 工具（移动、聊天、挖掘、放置、物品管理、世界感知、战斗）
+- 20 个 AI Function Calling 工具（移动、聊天、挖掘、放置、物品管理、世界感知、战斗、生存、多模态）
 - 8 个玩家命令系统（!help, !status, !come, !give, !list, !collect, !stop, !reset）
 - OpenAI / Claude / Custom 三种 AI 提供商
 - 对话上下文管理（滑动窗口 + 可配置轮数）

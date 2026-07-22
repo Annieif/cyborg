@@ -306,7 +306,7 @@ npm start
 | `MC_PORT` | number | `25565` | 服务器端口 |
 | `MC_USERNAME` | string | `AI_Cyborg` | Bot 在游戏中的名字（3-16位，仅 a-z A-Z 0-9 _） |
 | `MC_VERSION` | string | `1.20.1` | Minecraft 版本（需与服务器匹配） |
-| `AI_PROVIDER` | enum | `openai` | AI 提供商: `openai` / `claude` / `custom` |
+| `AI_PROVIDER` | enum | `openai` | AI 提供商: `openai` / `claude` / `custom` / `ollama` |
 | `AI_API_KEY` | string | *必填* | AI API 密钥 |
 | `AI_MODEL` | string | `gpt-4o` | 模型名称 |
 | `AI_BASE_URL` | url | `https://api.openai.com/v1` | API 地址（自定义兼容接口时使用） |
@@ -438,6 +438,39 @@ AI_API_KEY=sk-ant-api03-your-key
 AI_MODEL=claude-3-5-sonnet-20241022
 AI_BASE_URL=https://api.anthropic.com/v1
 ```
+
+### Ollama 本地模型配置
+
+```env
+AI_PROVIDER=ollama
+AI_MODEL=llama3.2
+# AI_API_KEY 不需要（Ollama 本地运行，无需密钥）
+# AI_BASE_URL 默认 http://localhost:11434/v1
+```
+
+**Ollama 安装:**
+```bash
+# 安装 Ollama
+# macOS/Linux: curl -fsSL https://ollama.com/install.sh | sh
+# Windows: https://ollama.com/download/windows
+
+# 拉取模型
+ollama pull llama3.2
+ollama pull qwen2.5
+ollama pull deepseek-r1
+```
+
+**Ollama 支持的模型:**
+| 模型 | 特点 | 工具调用 |
+|------|------|---------|
+| `llama3.2` | Meta 最新，综合能力强 | 支持 |
+| `qwen2.5` | 阿里通义千问，中文优秀 | 支持 |
+| `deepseek-r1` | 深度求索，推理能力强 | 部分支持 |
+| `mistral` | 轻量高效 | 部分支持 |
+| `gemma3` | Google 开源 | 部分支持 |
+| `phi4` | 微软小模型 | 部分支持 |
+
+> **注意**: 部分 Ollama 模型不支持 Function Calling。如果 AI 无法调用工具，尝试 `llama3.2` 或 `qwen2.5`。
 
 ---
 
@@ -2082,13 +2115,15 @@ curl -X POST http://localhost:3000/api/exp/record -H "Content-Type: application/
 
 ### v1.0.4 (2026-07-21)
 
-**AI 驱动自主模式 — 真正由 AI 自己做决定**
+**AI 驱动自主模式 + Ollama 本地模型支持**
 
 - 新增 `AI_AUTONOMOUS_AI_DRIVEN` 配置项：开启后 AI 自主决定做什么（而非随机活动）
 - AI 驱动模式流程：空闲 → 发送环境上下文给 AI → AI 调用 20 个工具自主行动 → 聊天输出决定 → 循环
 - 动态上下文：位置、生命、饥饿、附近玩家、手持物品、矿石资源等信息实时注入 AI 提示
+- 新增 **Ollama 本地模型支持** (`AI_PROVIDER=ollama`)，默认 `http://localhost:11434/v1`
+- Ollama 支持 12 种主流模型（llama3.2, qwen2.5, deepseek-r1, mistral, gemma3, phi4 等）
+- Ollama 无需 API Key，零成本本地运行
 - 与硬编码模式共存：`AI_AUTONOMOUS_AI_DRIVEN=false` 使用原有随机活动，`true` 使用 AI 决策
-- 注意：每轮消耗一次 AI API 调用（约 30 秒间隔），大量消耗 token
 
 ### v1.0.3 (2026-07-21)
 

@@ -14,10 +14,10 @@ const configSchema = z.object({
     auth: z.enum(['offline', 'microsoft']).default('offline'),
   }),
   ai: z.object({
-    provider: z.enum(['openai', 'claude', 'custom']).default('openai'),
-    apiKey: z.string().min(1, 'AI API Key is required'),
+    provider: z.enum(['openai', 'claude', 'custom', 'ollama']).default('openai'),
+    apiKey: z.string().default(''),
     model: z.string().default('gpt-4o'),
-    baseUrl: z.string().url().default('https://api.openai.com/v1'),
+    baseUrl: z.string().default('https://api.openai.com/v1'),
     persona: z.string().default('你是一个友善的Minecraft AI赛博人。'),
     maxContextMessages: z.coerce.number().int().positive().default(20),
     maxTokens: z.coerce.number().int().positive().default(8000),

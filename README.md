@@ -129,21 +129,30 @@
 
 ## 快速开始
 
-> **零基础用户**：只需安装 Docker Desktop，然后复制粘贴以下命令：
+> **零基础用户**：下载 → 双击 → 浏览器配置，3 分钟搞定！
 
-```bash
-git clone https://github.com/Annieif/cyborg.git
-cd cyborg
-docker-compose up
-```
+### 1. 下载
 
-然后打开浏览器访问 `http://localhost:3000`，按照引导配置即可。
+从 [Releases](https://github.com/Annieif/cyborg/releases) 下载 `cyborg-bot.exe` 和 `cyborg-bot.bat`
 
-**没有 Docker？** 从 [Releases](https://github.com/Annieif/cyborg/releases) 下载可执行文件双击运行。
+### 2. 获取免费 AI Key
 
-**有 Node.js 18+？** `npm install && npm run build && npm start`
+访问 https://github.com/chatanywhere/GPT_API_free 领取免费 API Key
 
-**详细指南**：见 [QUICKSTART.md](./QUICKSTART.md)
+### 3. 双击运行
+
+双击 `cyborg-bot.bat`，浏览器打开 `http://localhost:3000`，填入 Key 和服务器地址即可。
+
+---
+
+**其他方式：**
+
+| 方式 | 命令 | 适合 |
+|------|------|------|
+| Docker | `git clone` 后 `docker-compose up` | 有 Docker 的用户 |
+| Node.js | `npm install && npm run build && npm start` | 有 Node.js 18+ 的用户 |
+
+**详细指南**：[QUICKSTART.md](./QUICKSTART.md) | 完整教程见下方 [零基础完整教程](#零基础完整教程)
 
 ---
 

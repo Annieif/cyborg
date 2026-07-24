@@ -1,5 +1,9 @@
 # MineRL VPT — Minecraft AI 视觉智能
 
+> **⚠️ 此项目已归档，不再维护。**
+>
+> 新项目请移步：**[nl-vpt](https://github.com/Annieif/nl-vpt)** — 统一多模态模型，通过自然语言与 Minecraft 世界和玩家交互。
+
 基于 [OpenAI Video-Pre-Training (VPT)](https://github.com/openai/Video-Pre-Training) 和 [MineRL](https://minerl.readthedocs.io/) 的 Minecraft AI 视觉智能项目。
 
 提供 VPT 模型推理服务、MineRL 环境测试、数据集工具、基准评估等完整工具链。

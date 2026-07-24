@@ -14,7 +14,7 @@
 | 阶段10: v1.0.4 | ✅ complete | Ollama 本地模型支持 |
 | **阶段11: CLI测试+优化** | **✅ complete** | CLI客户端 + 服务器测试 + 4Bug修复 + 3功能增强 |
 | **阶段12: v1.2.0 零基础版** | **✅ complete** | Docker一键部署 + Web配置向导 + 可执行文件 + 云平台部署 + 文档重写 |
-| **阶段13: v2.0.0 VPT视觉智能** | **🔄 in_progress** | VPT视觉模型集成 + Python Bridge + 视觉自主模式 |
+| **阶段13: v2.0.0 VPT视觉智能** | **✅ complete** | VPT视觉模型集成 + Python Bridge + 视觉自主模式 + MineRL全面集成 |
 
 ---
 
@@ -74,7 +74,7 @@
 - [x] **编译验证**: 前后端 TypeScript 0 errors
 - [x] **MineRL 基准测试**: 竞赛标准评估 (EpisodeMetrics, TaskBenchmark, 基线对比, 环境验证, JSON报告)
 - [x] **Bridge 基准端点**: /api/vpt/minerl/benchmark/baselines, /status, /validate
-- [ ] **Release**: v2.0.0 版本发布
+- [x] **Release**: v2.0.0 版本发布
 
 ---
 

@@ -117,5 +117,9 @@
 - `vpt/minerl_benchmark.py` — MineRL 竞赛标准评估模块 (新增)
 - `vpt/bridge_server.py` — 新增 3 个 Benchmark 端点
 - `findings.md` — 更新 MineRL 工具链和基准测试文档
-- `task_plan.md` — 更新阶段13任务清单
 - `progress.md` — 本会话记录
+
+### 发布
+- **v2.0.0 Release**: 提交 `f4752aa`，标签 `v2.0.0`，已推送到 GitHub
+- **20 files changed, 3521 insertions(+)**: 13 个新文件 + 7 个修改文件
+- **新文件**: vpt/ (6个Python), src/vpt/ (4个TS), cli-client.mjs, scripts/start-vpt-bridge.bat

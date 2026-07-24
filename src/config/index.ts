@@ -35,6 +35,15 @@ const configSchema = z.object({
     port: z.coerce.number().int().positive().default(3000),
     host: z.string().default('localhost'),
   }),
+  vpt: z.object({
+    enabled: z.coerce.boolean().default(false),
+    bridgeUrl: z.string().default('http://127.0.0.1:8765'),
+    modelPath: z.string().default(''),
+    weightsPath: z.string().default(''),
+    visualAutonomous: z.coerce.boolean().default(false),
+    autonomousInterval: z.coerce.number().int().positive().default(200),
+    stochastic: z.coerce.boolean().default(true),
+  }),
   logging: z.object({
     level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
     file: z.string().default('logs/bot.log'),
@@ -77,6 +86,15 @@ export function loadConfig(): Config {
     web: {
       port: process.env.WEB_PORT,
       host: process.env.WEB_HOST,
+    },
+    vpt: {
+      enabled: process.env.VPT_ENABLED,
+      bridgeUrl: process.env.VPT_BRIDGE_URL,
+      modelPath: process.env.VPT_MODEL_PATH,
+      weightsPath: process.env.VPT_WEIGHTS_PATH,
+      visualAutonomous: process.env.VPT_VISUAL_AUTONOMOUS,
+      autonomousInterval: process.env.VPT_AUTONOMOUS_INTERVAL,
+      stochastic: process.env.VPT_STOCHASTIC,
     },
     logging: {
       level: process.env.LOG_LEVEL,

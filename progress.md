@@ -67,19 +67,55 @@
 - `task_plan.md` — 阶段9-11 状态更新
 - `progress.md` — 本会话记录
 
-## 会话 6: 2026-07-22 — v1.2.0 零基础版 设计
+## 会话 7: 2026-07-24 — v2.0.0 VPT视觉智能
+
 ### 完成事项
-- 分析现有代码结构（Docker、前端、后端 API）
-- 设计 v1.2.0 零基础版方案
-- 创建完整实现计划：5 个 Task，30+ 步骤
-- 输出文件：`docs/superpowers/plans/2026-07-22-v1.2.0-zero-basics.md`
+- **VPT 架构研究**: 深入分析 OpenAI Video-Pre-Training 仓库，理解 IMPALA CNN + Transformer 架构
+- **动作空间研究**: 掌握 CameraHierarchicalMapping (8641种按钮组合 + 121种相机组合)
+- **Python VPT Bridge**: 创建 FastAPI 服务 (`vpt/bridge_server.py`)，提供 `/api/vpt/act`, `/api/vpt/reset`, `/api/vpt/health` 端点
+- **VPT Agent Wrapper**: 创建 `vpt/vpt_agent.py`，封装模型加载、图像预处理、动作预测
+- **VPT 动作映射器**: 创建 `src/vpt/actionMapper.ts`，将 VPT 离散动作空间映射到 Mineflayer API
+- **VPT 客户端**: 创建 `src/vpt/client.ts`，通过 HTTP 与 Python Bridge 通信
+- **VPT 视觉自主模式**: 创建 `src/vpt/visualAutonomous.ts`，定时截图→VPT推理→执行动作
+- **VPT 集成到 Bot**: 在 `src/bot/index.ts` 中添加 VPT 自主模式，与现有 AI 对话共存
+- **配置扩展**: 新增 VPT_ENABLED, VPT_BRIDGE_URL, VPT_VISUAL_AUTONOMOUS 等 7 个配置项
+- **启动脚本**: `scripts/start-vpt-bridge.bat` Windows 一键启动 VPT Bridge
+- **编译验证**: 前后端 TypeScript 0 errors
 
-### 设计要点
-- **Docker 一键部署**：docker-compose up 即可启动，所有配置有默认值
-- **Web 配置向导**：5 步引导式配置（欢迎→AI→服务器→角色→完成）
-- **云平台部署**：Railway/Render 一键部署模板
-- **文档重写**：QUICKSTART.md 三步快速开始 + README 零基础重写
+### 创建/修改文件
+- `vpt/bridge_server.py` — Python FastAPI VPT 推理服务
+- `vpt/vpt_agent.py` — VPT 模型封装 (推理 + 动作解码)
+- `vpt/requirements.txt` — Python 依赖
+- `src/vpt/index.ts` — 模块导出
+- `src/vpt/actionMapper.ts` — VPT 动作 → Mineflayer 映射
+- `src/vpt/client.ts` — VPT Bridge HTTP 客户端
+- `src/vpt/visualAutonomous.ts` — VPT 视觉自主行为模式
+- `src/bot/index.ts` — 集成 VPT 自主模式 + BotStatus 扩展
+- `src/config/index.ts` — 新增 vpt 配置段
+- `.env.example` — 新增 VPT 配置项
+- `scripts/start-vpt-bridge.bat` — VPT Bridge 启动脚本
+- `package.json` — 版本号 1.2.1 → 2.0.0
+- `findings.md` — VPT 架构研究总结
+- `task_plan.md` — 阶段13 规划
+- `progress.md` — 本会话记录
 
-### 修改文件
-- `task_plan.md` — 阶段12 添加
+## 会话 8: 2026-07-24 — MineRL 基准测试与评估
+
+### 完成事项
+- **MineRL 基准测试模块**: 创建 `vpt/minerl_benchmark.py`，提供竞赛标准评估
+  - EpisodeMetrics/TaskBenchmark 数据类 (avg_reward, std_reward, success_rate, action_rate, steps_per_second)
+  - 任务成功检测: treechop(收集木头), navigate(到达目标), diamond(获得钻石), BASALT 任务
+  - 基线对比: 7 个任务的内置参考基线 (random, human, vpt_foundation_1x, vpt_rl)
+  - 环境验证: 自动检测 MineRL/Gym/Java 安装和可用任务
+  - JSON 报告: 可导出结构化 benchmark 报告
+- **Bridge 基准端点**: 新增 3 个端点
+  - `GET /api/vpt/minerl/benchmark/baselines` — 参考基线数据
+  - `GET /api/vpt/minerl/benchmark/status` — 环境状态检查
+  - `POST /api/vpt/minerl/benchmark/validate` — 环境验证
+
+### 创建/修改文件
+- `vpt/minerl_benchmark.py` — MineRL 竞赛标准评估模块 (新增)
+- `vpt/bridge_server.py` — 新增 3 个 Benchmark 端点
+- `findings.md` — 更新 MineRL 工具链和基准测试文档
+- `task_plan.md` — 更新阶段13任务清单
 - `progress.md` — 本会话记录

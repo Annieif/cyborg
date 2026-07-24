@@ -14,6 +14,67 @@
 | 阶段10: v1.0.4 | ✅ complete | Ollama 本地模型支持 |
 | **阶段11: CLI测试+优化** | **✅ complete** | CLI客户端 + 服务器测试 + 4Bug修复 + 3功能增强 |
 | **阶段12: v1.2.0 零基础版** | **✅ complete** | Docker一键部署 + Web配置向导 + 可执行文件 + 云平台部署 + 文档重写 |
+| **阶段13: v2.0.0 VPT视觉智能** | **🔄 in_progress** | VPT视觉模型集成 + Python Bridge + 视觉自主模式 |
+
+---
+
+## 阶段13: v2.0.0 VPT视觉智能 (2026-07-24)
+
+### 设计目标
+参考 OpenAI Video-Pre-Training (VPT) 项目，为 CyborgBot 集成视觉理解能力，实现基于视觉的自主行为模式。
+
+### 架构设计
+```
+┌─────────────┐   HTTP/WS   ┌──────────────────┐
+│  CyborgBot  │◄───────────►│  Python VPT      │
+│  (Node.js)  │  截图/动作   │  Bridge Service  │
+│  Mineflayer │             │  (PyTorch)       │
+└──────┬──────┘             └──────────────────┘
+       │                            │
+       ▼                            ▼
+  prismarine-viewer          VPT Model Weights
+  (headless 截图)            (.model + .weights)
+```
+
+### 功能清单
+| # | 功能 | 优先级 | 涉及文件 |
+|---|------|--------|---------|
+| 1 | Python VPT Bridge 服务 | 🔴 High | `vpt/bridge_server.py`, `vpt/vpt_agent.py`, `vpt/requirements.txt` |
+| 2 | VPT 动作映射器 (TS) | 🔴 High | `src/vpt/actionMapper.ts` |
+| 3 | VPT 客户端 (TS) | 🔴 High | `src/vpt/client.ts` |
+| 4 | 视觉状态捕获增强 | 🟡 Medium | `src/bot/index.ts`, `src/bot/tools.ts` |
+| 5 | VPT 视觉自主模式 | 🔴 High | `src/vpt/visualAutonomous.ts` |
+| 6 | 配置与启动脚本 | 🟡 Medium | `.env.example`, `src/config/index.ts`, `scripts/start-vpt-bridge.bat` |
+| 7 | MineRL 动作空间定义 | 🔴 High | `vpt/minerl_actions.py` |
+| 8 | MineRL 环境测试工具 | 🔴 High | `vpt/minerl_runner.py` |
+| 9 | MineRL 数据集工具 | 🟡 Medium | `vpt/minerl_data.py` |
+| 10 | VPT+MineRL 增强 Agent | 🔴 High | `vpt/vpt_agent.py` (VPTMineRLAgent) |
+| 11 | Bridge 增强 (Benchmark端点) | 🟡 Medium | `vpt/bridge_server.py` |
+| 12 | MineRL 基准测试与评估 | 🔴 High | `vpt/minerl_benchmark.py` |
+| 13 | 编译验证与发布 | 🔴 High | 版本号、编译、Release |
+
+### 操作步骤
+- [x] **VPT Bridge**: 创建 Python 服务，加载 VPT 模型，提供 `/api/vpt/act` 端点
+- [x] **VPT Bridge**: 实现 CameraHierarchicalMapping 动作映射
+- [x] **VPT Bridge**: 实现 ActionTransformer 相机量化
+- [x] **VPT ActionMapper (TS)**: 将 VPT 输出动作映射到 Mineflayer API
+- [x] **VPT Client (TS)**: 通过 HTTP 与 Python Bridge 通信
+- [x] **VPT Client (TS)**: 发送截图 base64，接收动作预测
+- [x] **视觉捕获**: 完善 prismarine-viewer headless 截图
+- [x] **VPT 视觉自主模式**: 定时截图 → VPT 推理 → 执行动作
+- [x] **VPT 视觉自主模式**: 与现有 AI 对话模式共存
+- [x] **配置**: 新增 VPT_BRIDGE_URL, VPT_ENABLED, VPT_MODEL_PATH 配置项
+- [x] **启动脚本**: scripts/start-vpt-bridge.bat (Windows)
+- [x] **MineRL 动作空间**: vpt/minerl_actions.py — 完整键盘/鼠标/相机映射 + 验证
+- [x] **MineRL 环境测试**: vpt/minerl_runner.py — 离线 VPT 模型测试
+- [x] **MineRL 数据集**: vpt/minerl_data.py — 下载/检查/列出数据集
+- [x] **VPTMineRLAgent**: vpt_agent.py — 增强版 Agent 支持 MineRL 环境
+- [x] **Bridge 增强**: 新增 /api/vpt/minerl/actions, /tasks, /validate 端点
+- [x] **TS 动作映射增强**: 引用 MINERL_MINEFLAYER_MAP 和 CAMERA_SCALER
+- [x] **编译验证**: 前后端 TypeScript 0 errors
+- [x] **MineRL 基准测试**: 竞赛标准评估 (EpisodeMetrics, TaskBenchmark, 基线对比, 环境验证, JSON报告)
+- [x] **Bridge 基准端点**: /api/vpt/minerl/benchmark/baselines, /status, /validate
+- [ ] **Release**: v2.0.0 版本发布
 
 ---
 

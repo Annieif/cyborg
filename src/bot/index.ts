@@ -8,6 +8,7 @@ import { RateLimiter } from '../utils/rateLimiter';
 import { HealthMonitor } from '../utils/healthMonitor';
 import { ExperienceMemory } from '../utils/experienceMemory';
 import { AutonomousBehavior } from './autonomous';
+import { VPTAutonomousBehavior } from '../vpt';
 import { EventEmitter } from 'events';
 
 const pathfinder = require('mineflayer-pathfinder');
@@ -45,6 +46,7 @@ export class CyborgBot extends EventEmitter {
   private proxyMode = false; // 真人代理模式
   private expMemory: ExperienceMemory;
   private autonomous: AutonomousBehavior | null = null; // 类人机自主模式
+  private vptAutonomous: VPTAutonomousBehavior | null = null; // VPT 视觉自主模式
 
   constructor(host?: string, port?: number) {
     super();
@@ -85,6 +87,18 @@ export class CyborgBot extends EventEmitter {
     // 启动类人机自主模式
     this.autonomous = new AutonomousBehavior(this.bot, this.conversation, (msg) => this.safeChat(msg));
     this.autonomous.start();
+
+    // 启动 VPT 视觉自主模式
+    if (config.vpt.enabled && config.vpt.visualAutonomous) {
+      this.vptAutonomous = new VPTAutonomousBehavior(this.bot, {
+        bridgeUrl: config.vpt.bridgeUrl,
+        interval: config.vpt.autonomousInterval,
+        stochastic: config.vpt.stochastic,
+      });
+      this.vptAutonomous.start().catch((err) => {
+        logger.warn('VPT visual autonomous mode failed to start:', err);
+      });
+    }
 
     this.registerEvents();
 
@@ -428,12 +442,14 @@ export class CyborgBot extends EventEmitter {
       chatCount: this.health.getReport().stats.chatCount,
       proxyMode: this.proxyMode,
       reconnecting: false,
+      vpt: this.vptAutonomous?.getStatus() ?? null,
     };
   }
 
   getHealth(): HealthMonitor { return this.health; }
   getExpMemory(): ExperienceMemory { return this.expMemory; }
   getAutonomous(): AutonomousBehavior | null { return this.autonomous; }
+  getVPTAutonomous(): VPTAutonomousBehavior | null { return this.vptAutonomous; }
 
   /** 截图（实验性多模态，需要 prismarine-viewer） */
   async takeScreenshot(): Promise<string | null> {
@@ -459,6 +475,7 @@ export class CyborgBot extends EventEmitter {
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
     this.autonomous?.stop();
+    this.vptAutonomous?.stop();
     if (this.bot) {
       try {
         this.bot.removeAllListeners();
@@ -489,4 +506,12 @@ export interface BotStatus {
   chatCount?: number;
   proxyMode?: boolean;
   reconnecting?: boolean;
+  vpt?: {
+    enabled: boolean;
+    paused: boolean;
+    connected: boolean;
+    modelLoaded: boolean;
+    actionCount: number;
+    lastAction: string;
+  } | null;
 }

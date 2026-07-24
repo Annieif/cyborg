@@ -1,0 +1,24 @@
+# VPT Bridge Service Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core ML
+torch>=2.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+
+# MineRL (for action space definitions)
+# Note: MineRL requires Java 8+ and Minecraft license
+# For headless VPT inference without MineRL env, we use a lightweight wrapper
+gym>=0.21.0
+
+# Web Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+python-multipart>=0.0.6
+
+# Image processing
+Pillow>=10.0.0
+
+# VPT-specific (from VPT repo's lib/)
+# The lib/ folder from VPT repo should be copied to vpt/lib/
+# These are local imports, not pip packages

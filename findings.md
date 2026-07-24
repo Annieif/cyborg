@@ -51,6 +51,95 @@
 - **聊天记录**: 接收到的聊天消息自动记录到经验记忆的"重要事件"
 - **出生点地标**: spawn 时自动记录出生点坐标到经验记忆的"重要地标"
 
+## VPT (Video-Pre-Training) 架构研究 (2026-07-24)
+
+### 核心架构
+- **VPT 是 OpenAI 提出的 Minecraft 行为克隆模型**，通过在大量 YouTube Minecraft 视频上预训练，再在 contractor 标注数据上微调
+- **模型结构**: IMPALA CNN (图像编码) → Transformer (时序记忆, 256 timesteps) → ActionHead + ValueHead
+- **参数量**: hidsize=2048, attention_heads=16, n_recurrence_layers=4, impala_chans=[16,32,32]
+- **输入**: 128x128 RGB 图像 (INTER_LINEAR 缩放)
+- **输出**: 离散化联合动作空间 (buttons 组合 + camera 离散化)
+
+### 动作空间映射 (CameraHierarchicalMapping)
+- **Buttons 分组**: hotbar(10选1) × fore_back(3选1) × left_right(3选1) × sprint_sneak(3选1) × use(2选1) × drop(2选1) × attack(2选1) × jump(2选1) × camera(2选1) + inventory
+- **总组合数**: 10×3×3×3×2×2×2×2×2 + 1 = 8641 种按钮组合
+- **Camera 离散化**: 11 bins (mu-law 量化), 121 种 (11×11) 相机组合
+- **动作转换**: CameraHierarchicalMapping.to_factored() → ActionTransformer.policy2env()
+- **关键特性**: camera meta action 控制相机是否激活；inventory 与 camera 互斥
+
+### 逆动力学模型 (IDM)
+- **用途**: 从视频帧预测玩家动作，用于标注未标注的 YouTube 数据
+- **结构**: 3D Conv + IMPALA + Transformer → ActionHead
+- **IDMAgent**: 处理视频帧序列，预测连续动作
+- **输入**: 视频帧序列 (N, H, W, C)
+- **输出**: MineRL 动作字典 (buttons + camera)
+
+### 行为克隆 (BC) 训练
+- **梯度累积**: 单步训练，batch_size=8, n_workers=12
+- **优化器**: Adam, lr=0.000181, weight_decay=0.039428, max_grad_norm=5.0
+- **数据加载**: DataLoader 从 mp4+jsonl 加载轨迹，跳过 null actions
+- **隐藏状态管理**: 每个 episode 独立跟踪 hidden state (transformer memory)
+
+### 集成到 CyborgBot 的关键挑战
+1. **环境差异**: VPT 使用 MineRL (真实游戏客户端), CyborgBot 使用 Mineflayer (无客户端)
+2. **视觉输入**: CyborgBot 需要 prismarine-viewer 提供截图作为 VPT 输入
+3. **动作映射**: VPT 的连续/离散动作需要映射到 Mineflayer 的 API 调用
+4. **语言障碍**: Python (PyTorch) ↔ TypeScript (Node.js) 跨语言通信
+5. **模型权重**: 需要下载 VPT 预训练权重 (~500MB)
+
+### 集成方案设计
+1. **Python VPT Bridge**: 独立 Python 进程加载 VPT 模型，通过 HTTP/WebSocket 提供推理服务
+2. **TypeScript VPT Client**: Node.js 端发送截图，接收动作预测
+3. **动作映射层**: 将 VPT 动作空间映射到 Mineflayer 命令
+4. **视觉捕获**: prismarine-viewer headless 模式截图
+
+## MineRL 环境集成 (2026-07-24)
+
+### MineRL 概述
+- **MineRL 是 Minecraft AI 研究的标准环境**，提供 gym 接口的 Minecraft 环境
+- **VPT 依赖 MineRL**: VPT 的训练和评估都在 MineRL 环境中进行
+- **MineRL 提供**: 标准任务 (Treechop/Navigate/ObtainDiamond)、人类示范数据集、统一动作空间
+
+### MineRL 动作空间 (完整)
+- **键盘映射** (KEYBOARD_BUTTON_MAPPING): 17 个键位映射 (W/A/S/D/Space/Shift/Ctrl/E/Q/F/1-9/Esc)
+- **鼠标映射** (MOUSE_BUTTON_MAPPING): 左键=attack(0), 右键=use(1), 中键=pickItem(2)
+- **相机缩放** (CAMERA_SCALER): 360.0/2400.0 ≈ 0.15 (匹配 MineRL Java 灵敏度代码)
+- **NOOP_ACTION**: 23 个动作维度的零动作模板
+
+### MineRL → Mineflayer 映射
+- 完整映射表 MINERL_TO_MINEFLAYER: 23 个 MineRL 动作 → Mineflayer 操作
+- 控制类动作: forward/back/left/right/jump/sprint/sneak → setControlState
+- 鼠标类动作: attack → pvp.attack, use → useOn/activateItem/placeBlock
+- 物品栏: hotbar.1-9 → setQuickBarSlot
+- 特殊: inventory → openChest, drop → tossStack, pickItem → pickBlock
+
+### MineRL 标准任务
+| 任务 | 环境名 | 类型 |
+|------|--------|------|
+| 砍树 | MineRLTreechop-v0 | 基础 |
+| 导航 | MineRLNavigate-v0 | 基础 |
+| 导航(密集) | MineRLNavigateDense-v0 | 基础 |
+| 导航(极限) | MineRLNavigateExtreme-v0 | 基础 |
+| 获得钻石 | MineRLObtainDiamond-v0 | 竞赛 |
+| 寻找洞穴 | MineRLBasaltFindCave-v0 | BASALT |
+| 建造瀑布 | MineRLBasaltMakeWaterfall-v0 | BASALT |
+| 建造围栏 | MineRLBasaltCreateVillageAnimalPen-v0 | BASALT |
+| 建造房屋 | MineRLBasaltBuildVillageHouse-v0 | BASALT |
+
+### MineRL 工具链
+- `minerl_runner.py`: 在 MineRL 环境中离线测试 VPT 模型
+- `minerl_data.py`: 下载/检查/列出 MineRL 数据集
+- `minerl_actions.py`: 完整 MineRL 动作空间定义 (键盘/鼠标/相机/验证)
+- `minerl_benchmark.py`: MineRL 竞赛标准评估 (多任务基准测试、基线对比、JSON 报告)
+- Bridge Server 新增端点: `/api/vpt/minerl/actions`, `/api/vpt/minerl/tasks`, `/api/vpt/minerl/validate`, `/api/vpt/minerl/benchmark/baselines`, `/api/vpt/minerl/benchmark/status`, `/api/vpt/minerl/benchmark/validate`
+
+### MineRL 基准测试与评估 (2026-07-24)
+- **竞赛标准指标**: avg_reward, std_reward, success_rate, avg_steps, action_rate, steps_per_second
+- **任务成功检测**: 每个任务独立检测（treechop=收集木头, navigate=到达目标, diamond=获得钻石）
+- **基线对比**: 内置 7 个任务的参考基线 (random, human, vpt_foundation_1x, vpt_rl 等)
+- **环境验证**: 自动检测 MineRL/Gym/Java 安装和可用任务
+- **JSON 报告**: 可导出结构化 benchmark 报告用于追踪和对比
+
 ## 项目结构设计
 ```
 赛博人/

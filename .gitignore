@@ -1,18 +1,41 @@
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
 dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# PyTorch / Jupyter
+.ipynb_checkpoints/
+
+# MineRL data
+minerl_data/
+
+# Model weights
+*.model
+*.weights
+*.pth
+*.pt
+
+# Environment
 .env
-logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
-.claude/
-frontend/dist/
-测试服务器/
-experience/
-
-# 编译生成的可执行文件
-cyborg-bot
-cyborg-bot.exe
-cyborg-bot-linux
-cyborg-bot-mac
-
-# 自动生成的前端资源文件
-src/frontendAssets.ts
+logs/
